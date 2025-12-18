@@ -26,7 +26,7 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen bg-gray-100">
       {/* aquí tu header propio del panel si quieres */}
-      <main className="max-w-6xl mx-auto py-8 px-4">{children}</main>
+      <main className="max-w-screen-2xl mx-auto py-8 px-4">{children}</main>
     </div>
   );
 }

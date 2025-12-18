@@ -10,7 +10,7 @@ export default function Header() {
       />
       {/* Logo per a modo obscur */}
       <img
-        src="/img/logo-hogar-dark.jpg"
+        src="/img/logo-hogar-dark-2.jpg"
         alt="Logotipo Oscuro"
         className="h-32 ml-8 hidden dark:block"
       />

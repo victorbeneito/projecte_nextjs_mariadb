@@ -11,9 +11,10 @@ interface CategoriaProducto {
 
 interface Variante {
   _id: string;
-  nombre: string;
-  tipo: "TAMAÑO" | "TIRADOR" | "COLOR";
-  valor: string;
+  color?: string;
+  imagen?: string;
+  tamaño?: string;
+  tirador?: string;
   precio_extra?: number | null;
 }
 
@@ -21,6 +22,7 @@ interface Producto {
   _id: string;
   nombre: string;
   descripcion: string;
+  descripcion_html?: string;
   precio: number;
   precio_descuento?: number | null;
   descuento_porcentaje?: number | null;
@@ -42,12 +44,26 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
   const [imagenActiva, setImagenActiva] = useState(imagenes[0] ?? "");
   const [cantidad, setCantidad] = useState(1);
   const [tabActiva, setTabActiva] = useState<
-    "descripcion" | "detalles" | "opiniones"
-  >("descripcion");
+    "descripcion" | "detalles" | "opiniones">("descripcion");
+  const [tamanoSeleccionado, setTamanoSeleccionado] = useState<string | null>(null);
+const [tiradorSeleccionado, setTiradorSeleccionado] = useState<string | null>(null);
+const [colorSeleccionado, setColorSeleccionado] = useState<string | null>(null);
 
-  const tamaños  = variantes.filter((v) => v.tipo === "TAMAÑO");
-  const tiradores = variantes.filter((v) => v.tipo === "TIRADOR");
-  const colores   = variantes.filter((v) => v.tipo === "COLOR");
+const tamaños = variantes.filter((v) => v.tamaño);
+const tiradores = variantes.filter((v) => v.tirador);
+const colores = variantes.filter((v) => v.color);
+
+// precio base (ya con descuento si lo usas o solo producto.precio)
+const precioBase = producto.precio_descuento ?? producto.precio;
+
+// buscar precio_extra según selección
+const extraTamanoVariante = tamaños.find((t) => t.tamaño === tamanoSeleccionado);
+
+
+const extraTamano = extraTamanoVariante?.precio_extra ?? 0;
+
+const precioFinal = precioBase + extraTamano;
+
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
@@ -122,78 +138,82 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
 
           {/* Precio y descuento */}
           <div className="flex items-baseline gap-3">
-            {producto.precio_descuento ? (
-              <>
-                <span className="text-2xl font-bold text-primary">
-                  {producto.precio_descuento.toFixed(2)} €
-                </span>
-                <span className="text-sm line-through text-gray-400">
-                  {producto.precio.toFixed(2)} €
-                </span>
-                {producto.descuento_porcentaje && (
-                  <span className="text-xs font-semibold text-white bg-green-500 px-2 py-1 rounded">
-                    -{producto.descuento_porcentaje}%
-                  </span>
-                )}
-              </>
-            ) : (
-              <span className="text-2xl font-bold text-primary">
-                {producto.precio.toFixed(2)} €
-              </span>
-            )}
-          </div>
+  <span className="text-2xl font-bold text-primary">
+    {precioFinal.toFixed(2)} €
+  </span>
+
+  {/* Si hay descuento, muestra el precio original tachado */}
+  {producto.precio_descuento && (
+    <span className="text-sm line-through text-gray-400">
+      {producto.precio.toFixed(2)} €
+    </span>
+  )}
+
+  {producto.descuento_porcentaje && (
+    <span className="text-xs font-semibold text-white bg-green-500 px-2 py-1 rounded">
+      -{producto.descuento_porcentaje}%
+    </span>
+  )}
+</div>
+
 
           {/* Variantes */}
           <div className="space-y-4">
             {/* Tamaño */}
-            {tamaños.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium mb-1">Tamaño</h3>
-                <select className="w-full border rounded px-3 py-2 text-sm">
-                  {tamaños.map((t) => (
-                    <option key={t._id} value={t.valor}>
-                      {t.valor}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+{tamaños.length > 0 && (
+  <div>
+    <h3 className="text-sm font-medium mb-1">Tamaño</h3>
+    <select
+      className="w-full border rounded px-3 py-2 text-sm"
+      value={tamanoSeleccionado ?? ""}
+      onChange={(e) => setTamanoSeleccionado(e.target.value || null)}
+    >
+      <option value="">Selecciona tamaño</option>
+      {tamaños.map((t) => (
+        <option key={t._id} value={t.tamaño}>
+          {t.tamaño}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
 
-            {/* Tirador */}
-            {tiradores.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium mb-1">Tirador</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {tiradores.map((t) => (
-                    <button
-                      key={t._id}
-                      type="button"
-                      className="border rounded px-3 py-2 text-sm hover:border-primary"
-                    >
-                      {t.valor}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+{/* Tirador */}
+{tiradores.length > 0 && (
+  <div>
+    <h3 className="text-sm font-medium mb-1">Tirador</h3>
+    <div className="grid grid-cols-2 gap-2">
+      {tiradores.map((t) => (
+        <button
+          key={t._id}
+          type="button"
+          className="border rounded px-3 py-2 text-sm hover:border-primary"
+        >
+          {t.tirador}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
 
-            {/* Color */}
-            {colores.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium mb-1">Color</h3>
-                <div className="flex flex-wrap gap-2">
-                  {colores.map((c) => (
-                    <button
-                      key={c._id}
-                      type="button"
-                      className="border rounded-full h-8 px-3 text-xs flex items-center justify-center hover:border-primary"
-                    >
-                      {c.valor}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+{/* Color */}
+{colores.length > 0 && (
+  <div>
+    <h3 className="text-sm font-medium mb-1">Color</h3>
+    <div className="flex flex-wrap gap-2">
+      {colores.map((c) => (
+        <button
+          key={c._id}
+          type="button"
+          className="border rounded-full h-8 px-3 text-xs flex items-center justify-center hover:border-primary"
+        >
+          {c.color}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+
           </div>
 
           {/* Cantidad + botón */}
@@ -310,18 +330,32 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
           </button>
         </div>
 
+ 
         <div className="p-4 text-sm text-gray-700">
-          {tabActiva === "descripcion" && <p>{producto.descripcion}</p>}
-          {tabActiva === "detalles" && (
-            <p>
-              Aquí irán los detalles técnicos del producto (tejido,
-              composición, mantenimiento, etc.).
-            </p>
-          )}
-          {tabActiva === "opiniones" && (
-            <p>Todavía no hay opiniones para este producto.</p>
-          )}
-        </div>
+  {tabActiva === "descripcion" && (
+    <div
+      className="prose max-w-none prose-img:max-w-full prose-img:h-auto"
+      dangerouslySetInnerHTML={{
+  __html:
+    (producto as any).descripcion_html_cruda ||
+    producto.descripcion ||
+    "",
+}}
+    />
+  )}
+
+  {tabActiva === "detalles" && (
+    <p>
+      Aquí irán los detalles técnicos del producto (tejido,
+      composición, mantenimiento, etc.).
+    </p>
+  )}
+
+  {tabActiva === "opiniones" && (
+    <p>Todavía no hay opiniones para este producto.</p>
+  )}
+</div>
+
       </div>
     </div>
   );

@@ -9,15 +9,25 @@ const Marca =
 const Categoria =
   mongoose.models.Categoria || mongoose.model("Categoria", categoriaSchema);
 
+  const varianteSchema = new mongoose.Schema({
+  color: String,
+  imagen: String,
+  tamaño: String,
+  tirador: String,
+  precio_extra: Number,
+});
+
 const productoSchema = new mongoose.Schema({
   nombre: String,
   descripcion: String,
+  descripcion_html_cruda: String,
   precio: Number,
   stock: Number,
   marca: { type: mongoose.Schema.Types.ObjectId, ref: "Marca" },
   categoria: { type: mongoose.Schema.Types.ObjectId, ref: "Categoria" },
   imagenes: [String],
   categorias: [String],
+  variantes: [varianteSchema],
 });
 
 const Producto =
@@ -43,7 +53,7 @@ export async function GET(req: NextRequest) {
       JSON.stringify(productos[0], null, 2)
     );
 
-    return NextResponse.json({ ok: true, productos });
+    return NextResponse.json({ ok: true, productos }, { status: 200 });
   } catch (error: any) {
     console.error("❌ Error en GET /api/productos:", error.message);
     return NextResponse.json(
@@ -81,6 +91,7 @@ export async function POST(req: NextRequest) {
     const productoData = {
       nombre: body.nombre,
       descripcion: body.descripcion || "",
+      descripcion_html: body.descripcion_html_cruda || "",
       precio: parseFloat(body.precio),
       stock: parseInt(body.stock),
       marca: marcaData._id,

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from "next/navigation";
+
 
 interface Cliente {
   _id: string;
@@ -18,6 +20,7 @@ export default function AdminClientes() {
   });
   const [editando, setEditando] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const fetchClientes = async () => {
     try {
@@ -76,8 +79,19 @@ export default function AdminClientes() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-gray-900 mb-12">👥 Gestión Clientes</h1>
+
+        {/* Botón volver al panel de administración */}
+<div className="mb-12">
+  <button
+    onClick={() => router.push("/admin")}
+    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-[#6BAEC9] to-[#A8D7E6] hover:from-[#5FA0B3] hover:to-[#91C8D9] shadow-md transition-all duration-300"
+  >
+    ← Volver al Panel de Administración
+  </button>
+</div>
+
         
         {/* FORMULARIO */}
         <div className="bg-white rounded-2xl shadow-2xl p-8 mb-12">

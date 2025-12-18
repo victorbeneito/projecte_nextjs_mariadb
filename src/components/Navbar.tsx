@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 
+
 type Categoria = {
   _id: string;
   nombre: string;
@@ -28,7 +29,7 @@ export default function Navbar({
   }
 
   return (
-    <nav className="flex justify-between items-center bg-secondary text-neutral px-8 py-2 font-poppins dark:bg-darkNavBg dark:text-darkNavText transition-colors duration-300">
+    <nav className="flex justify-between items-center bg-terciary text-neutral text-stroke-2 text-stroke-black px-8 py-2 font-poppins dark:bg-darkNavBg dark:text-darkNavText transition-colors duration-300">
       <div className="flex space-x-6 overflow-x-auto">
         <Link href="/" className="hover:text-primary">
           Inicio
@@ -37,7 +38,7 @@ export default function Navbar({
           <Link
             key={cat._id}
             href={`/categorias/${cat._id}`}
-            className="hover:text-primary whitespace-nowrap"
+            className="hover:text-primary text-neutral dark:text-darkNavText whitespace-nowrap"
           >
             {cat.nombre}
           </Link>
@@ -61,9 +62,16 @@ export default function Navbar({
           {darkMode ? "🌞" : "🌙"}
         </button>
 
-        <button className="bg-primary text-neutral px-4 py-2 rounded-base" disabled>
+        {/* <button className="bg-primary text-neutral px-4 py-2 rounded-base" disabled>
           Iniciar sesión
-        </button>
+        </button> */}
+
+        <Link
+          href="/auth"
+          className="px-4 py-2 rounded-xl bg-primary text-white font-semibold hover:bg-primaryHover"
+        >
+          Iniciar sesión
+        </Link>
       </div>
     </nav>
   );

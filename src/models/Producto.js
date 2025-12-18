@@ -11,6 +11,7 @@ const varianteSchema = new mongoose.Schema({
 const productoSchema = new mongoose.Schema({
   nombre: { type: String, required: true },
   descripcion: String,
+  descripcion_html: { type: String },
   precio: { type: Number, required: true },
   stock: Number,
   marca: { type: mongoose.Schema.Types.ObjectId, ref: 'Marca' },

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface VarianteForm {
   tipo: "TAMAÑO" | "TIRADOR" | "COLOR" | "";
@@ -10,7 +12,8 @@ interface VarianteForm {
 
 interface FormData {
   nombre: string;
-  descripcion: string;
+  descripcion: string;        // puedes dejarla como resumen corto
+  descripcion_html_cruda: string;   // NUEVO: descripción con formato
   precio: string;
   stock: string;
   marca: string;
@@ -26,6 +29,7 @@ export default function AdminProductos() {
   const [formData, setFormData] = useState<FormData>({
     nombre: "",
     descripcion: "",
+    descripcion_html_cruda: "",
     precio: "",
     stock: "",
     marca: "",
@@ -36,6 +40,7 @@ export default function AdminProductos() {
   const [editando, setEditando] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -127,21 +132,38 @@ export default function AdminProductos() {
       .filter((u) => u.length > 0);
 
     const variantesLimpias = formData.variantes
-      .filter((v) => v.tipo && v.valor)
-      .map((v) => ({
-        tipo: v.tipo,
-        valor: v.valor,
-        precio_extra:
-          v.precio_extra.trim() === "" ? null : Number(v.precio_extra),
-      }));
+  .filter((v) => v.tipo && v.valor)
+  .map((v) => {
+    const base = {
+      color: "",
+      imagen: "",
+      tamaño: "",
+      tirador: "",
+      precio_extra:
+        v.precio_extra.trim() === "" ? null : Number(v.precio_extra),
+    };
+
+    if (v.tipo === "TAMAÑO") {
+      return { ...base, tamaño: v.valor };
+    }
+    if (v.tipo === "TIRADOR") {
+      return { ...base, tirador: v.valor };
+    }
+    if (v.tipo === "COLOR") {
+      return { ...base, color: v.valor };
+    }
+    return base;
+  });
 
     const payload = {
-      ...formData,
-      precio: Number(formData.precio),
-      stock: Number(formData.stock),
-      imagenes: imagenesLimpias,
-      variantes: variantesLimpias,
-    };
+  ...formData,
+  precio: Number(formData.precio),
+  stock: Number(formData.stock),
+  imagenes: imagenesLimpias,
+  variantes: variantesLimpias,
+};
+
+
 
     try {
       const res = await fetch(url, {
@@ -158,6 +180,7 @@ export default function AdminProductos() {
         setFormData({
           nombre: "",
           descripcion: "",
+          descripcion_html_cruda:"",
           precio: "",
           stock: "",
           marca: "",
@@ -179,9 +202,13 @@ export default function AdminProductos() {
   };
 
   const handleEdit = (producto: any) => {
+
+
+
     setFormData({
       nombre: producto.nombre,
       descripcion: producto.descripcion || "",
+      descripcion_html_cruda: producto.descripcion_html || "",
       precio: String(producto.precio ?? ""),
       stock: String(producto.stock ?? ""),
       marca: producto.marca?.nombre || "",
@@ -191,15 +218,31 @@ export default function AdminProductos() {
           ? producto.imagenes
           : [""],
       variantes: Array.isArray(producto.variantes)
-        ? producto.variantes.map((v: any) => ({
-            tipo: v.tipo || "",
-            valor: v.valor || "",
-            precio_extra:
-              typeof v.precio_extra === "number"
-                ? String(v.precio_extra)
-                : v.precio_extra || "",
-          }))
-        : [],
+  ? producto.variantes.map((v: any) => {
+      let tipo: VarianteForm["tipo"] = "";
+      let valor = "";
+
+      if (v.tamaño) {
+        tipo = "TAMAÑO";
+        valor = v.tamaño;
+      } else if (v.tirador) {
+        tipo = "TIRADOR";
+        valor = v.tirador;
+      } else if (v.color) {
+        tipo = "COLOR";
+        valor = v.color;
+      }
+
+      return {
+        tipo,
+        valor,
+        precio_extra:
+          typeof v.precio_extra === "number"
+            ? String(v.precio_extra)
+            : v.precio_extra || "",
+      };
+    })
+  : [],
     });
     setEditando(true);
     setEditId(producto._id);
@@ -230,6 +273,16 @@ export default function AdminProductos() {
           </p>
         </div>
 
+        {/* Botón volver al panel de administración */}
+<div className="mb-12">
+  <button
+    onClick={() => router.push("/admin")}
+    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-[#6BAEC9] to-[#A8D7E6] hover:from-[#5FA0B3] hover:to-[#91C8D9] shadow-md transition-all duration-300"
+  >
+    ← Volver al Panel de Administración
+  </button>
+</div>
+
         {/* Formulario */}
         <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-10 mb-16 border border-white/50">
           <h2 className="text-3xl font-bold text-gray-800 mb-8">
@@ -258,22 +311,43 @@ export default function AdminProductos() {
               />
             </div>
 
-            {/* Descripción */}
-            <div className="flex flex-col gap-2 md:col-span-2">
-              <label
-                htmlFor="descripcion"
-                className="text-sm font-semibold text-gray-700"
-              >
-                Descripción
-              </label>
-              <textarea
-                id="descripcion"
-                name="descripcion"
-                value={formData.descripcion}
-                onChange={handleChange}
-                className="p-6 border border-[#DDC9A3]/50 rounded-2xl focus:ring-4 focus:ring-[#6BAEC9]/30 focus:border-[#6BAEC9] transition-all duration-300 text-lg min-h-[96px]"
-              />
-            </div>
+            {/* Descripción con formato */}
+
+{/* Descripción HTML cruda */}
+<div className="flex flex-col gap-2 md:col-span-2">
+  <label
+    htmlFor="descripcion_html_cruda"
+    className="text-sm font-semibold text-gray-700"
+  >
+    Descripción HTML (pega aquí el código con &lt;p&gt; e &lt;img&gt;)
+  </label>
+  <textarea
+    id="descripcion_html_cruda"
+    name="descripcion_html_cruda"
+    value={formData.descripcion_html_cruda}
+    onChange={(e) =>
+      setFormData((prev) => ({
+        ...prev,
+        descripcion_html_cruda: e.target.value,
+      }))
+    }
+    className="p-6 border border-[#DDC9A3]/50 rounded-2xl focus:ring-4 focus:ring-[#6BAEC9]/30 focus:border-[#6BAEC9] transition-all duration-300 text-lg min-h-[160px] font-mono text-xs"
+    placeholder="&lt;p&gt;...&lt;/p&gt; con &lt;img src='https://...' /&gt;"
+  />
+</div>
+
+
+{/* <div className="flex flex-col gap-2 md:col-span-2">
+  <label className="text-sm font-semibold text-gray-700">
+    Descripción detallada (con fotos y formato)
+  </label>
+  <RichTextEditor
+    value={formData.descripcion_html_cruda}
+    onChange={(html) =>
+      setFormData((prev) => ({ ...prev, descripcion_html: html }))
+    }
+  />
+</div> */}
 
             {/* Precio */}
             <div className="flex flex-col gap-2">
@@ -499,6 +573,7 @@ export default function AdminProductos() {
                   setFormData({
                     nombre: "",
                     descripcion: "",
+                    descripcion_html_cruda: "",
                     precio: "",
                     stock: "",
                     marca: "",

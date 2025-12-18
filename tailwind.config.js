@@ -15,11 +15,12 @@ module.exports = {
         neutral: "#FFFFFF",
         primaryHover: "#A8D7E6",
         fondo: "#F8F8F5",
-        darkBg: "#4A4A4A",
+        darkBg: "#6e6e6e",
         darkNavBg: "#ababab",
         darkNavText: "#2C2C2C",
         hoverFooter: "#d6d2d2",
         botonHover: "#c9c6c6",
+        fondoCasilla: "#f2fbff"
       },
       fontFamily: {
         poppins: ["Poppins", "sans-serif"],

@@ -4,15 +4,26 @@ import mongoose from "mongoose";
 // ✅ SCHEMAS COMPLETOS
 const marcaSchema = new mongoose.Schema({ nombre: String });
 const categoriaSchema = new mongoose.Schema({ nombre: String });
+
+const varianteSchema = new mongoose.Schema({
+  color: String,
+  imagen: String,
+  tamaño: String,
+  tirador: String,
+  precio_extra: Number,
+});
+
 const productoSchema = new mongoose.Schema({
   nombre: String,
   descripcion: String,
+  descripcion_html_cruda: String,
   precio: Number,
   stock: Number,
   marca: { type: mongoose.Schema.Types.ObjectId, ref: "Marca" },
   categoria: { type: mongoose.Schema.Types.ObjectId, ref: "Categoria" },
   imagenes: [String],
   categorias: [String],
+  variantes: [varianteSchema],
 });
 
 const Marca =
@@ -60,6 +71,7 @@ export async function PUT(
 
     const body = await req.json();
 
+  
     // CONVERTIR NOMBRES → ObjectId
     const marcaData = await Marca.findOne({ nombre: body.marca });
     const categoriaData = await Categoria.findOne({ nombre: body.categoria });
@@ -78,21 +90,23 @@ export async function PUT(
     }
 
     const producto = await Producto.findByIdAndUpdate(
-      id,
-      {
-        $set: {
-          nombre: body.nombre,
-          descripcion: body.descripcion,
-          precio: body.precio,
-          stock: body.stock,
-          marca: marcaData._id,
-          categoria: categoriaData._id,
-          imagenes: body.imagenes ?? [],
-          categorias: body.categorias ?? [],
-        },
-      },
-      { new: true, runValidators: true }
-    );
+  id,
+  {
+    $set: {
+      nombre: body.nombre,
+      descripcion: body.descripcion,
+      descripcion_html_cruda: body.descripcion_html_cruda,
+      precio: body.precio,
+      stock: body.stock,
+      marca: marcaData._id,
+      categoria: categoriaData._id,
+      imagenes: body.imagenes ?? [],
+      categorias: body.categorias ?? [],
+      variantes: body.variantes ?? [], // ← AÑADIDO
+    },
+  },
+  { new: true, runValidators: true }
+);
 
     if (!producto) {
       return NextResponse.json(

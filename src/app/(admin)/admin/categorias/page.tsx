@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from "next/navigation";
 
 interface Categoria {
   _id: string;
@@ -12,6 +13,7 @@ export default function AdminCategorias() {
   const [nuevaCategoria, setNuevaCategoria] = useState('');
   const [loading, setLoading] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     fetchCategorias();
@@ -71,8 +73,18 @@ export default function AdminCategorias() {
 
   return (
     <div className="min-h-screen bg-[#F8F8F5] py-8 px-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-[#4A4A4A] mb-12">🏷️ Categorías</h1>
+        {/* Botón volver al panel de administración */}
+<div className="mb-12">
+  <button
+    onClick={() => router.push("/admin")}
+    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-[#6BAEC9] to-[#A8D7E6] hover:from-[#5FA0B3] hover:to-[#91C8D9] shadow-md transition-all duration-300"
+  >
+    ← Volver al Panel de Administración
+  </button>
+</div>
+
         
         {/* FORMULARIO */}
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-12 border border-[#6BAEC9]/10">
