@@ -63,10 +63,10 @@ export async function GET(
 // ✅ PUT /api/productos/[id]  → actualizar producto
 export async function PUT(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await context.params;
+   const { id } = await params;
     await mongoose.connect(process.env.MONGODB_URI!);
 
     const body = await req.json();
