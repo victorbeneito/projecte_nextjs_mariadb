@@ -107,7 +107,7 @@ export default function CarritoPage() {
         {carrito.map((item) => (
           <div key={item._id} className="p-4 flex items-center gap-4">
             <img
-              src={item.imagen || item.image || "/no-image.png"}
+              src={item.imagen || "/no-image.jpg"}
               alt={item.nombre}
               className="w-20 h-20 object-cover rounded border"
             />
