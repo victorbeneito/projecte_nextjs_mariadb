@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useClienteAuth } from "@/context/ClienteAuthContext";
 import { getCart } from "@/lib/cartService";
 import { FaShoppingCart } from "react-icons/fa";
+// @ts-expect-error Falta tipos de use-debounce
+import { useDebounce } from "use-debounce";
 
 type Categoria = {
   _id: string;
@@ -16,39 +18,39 @@ type NavbarProps = {
   darkMode: boolean;
   setDarkMode: (value: boolean) => void;
   categories: Categoria[];
-  onSearch?: (text: string) => void;
-  searchQuery?: string;
 };
 
 export default function Navbar({
   darkMode,
   setDarkMode,
   categories = [],
-  onSearch,
-  searchQuery = "",
 }: NavbarProps) {
   const router = useRouter();
   const { cliente, logout } = useClienteAuth();
   const [cartCount, setCartCount] = useState(0);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    onSearch?.(e.target.value);
-  }
+  // 🔍 Estado del buscador
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch] = useDebounce(searchQuery, 400); // espera 0.4 s antes de aplicar la búsqueda
 
-  // 🧩 Calcular cantidad de productos del carrito
+  // 🚀 Cuando cambia el valor "debounced", actualiza la URL
+  useEffect(() => {
+    const query = debouncedSearch.trim();
+    router.push(query ? `/productos?q=${encodeURIComponent(query)}` : "/productos");
+  }, [debouncedSearch, router]);
+
+  // 🧺 Contador de carrito
   const actualizarContador = () => {
     const cart = getCart();
     const totalCantidad = cart.reduce((acc, item) => acc + item.cantidad, 0);
     setCartCount(totalCantidad);
   };
 
-  // 🧠 Escuchar cambios en tiempo real (storage event)
+  // 🧠 Escuchar cambios en el carrito
   useEffect(() => {
-    actualizarContador(); // al cargar
-
+    actualizarContador();
     const handleStorageChange = () => actualizarContador();
     window.addEventListener("storage", handleStorageChange);
-
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
@@ -59,7 +61,7 @@ export default function Navbar({
 
   return (
     <nav className="flex justify-between items-center bg-terciary text-neutral px-8 py-2 font-poppins dark:bg-darkNavBg dark:text-darkNavText transition-colors duration-300">
-      {/* Sección izquierda - categorías */}
+      {/* Izquierda - categorías */}
       <div className="flex space-x-6 overflow-x-auto">
         <Link href="/" className="hover:text-primary">
           Inicio
@@ -76,18 +78,18 @@ export default function Navbar({
         ))}
       </div>
 
-      {/* Sección derecha - búsqueda, modo oscuro, usuario, carrito */}
+      {/* Derecha - búsqueda, modo oscuro, usuario, carrito */}
       <div className="flex items-center space-x-4">
-        {/* Buscador */}
+        {/* 🔍 Buscador live */}
         <input
           type="text"
           placeholder="Buscar productos..."
           value={searchQuery}
-          onChange={handleChange}
+          onChange={(e) => setSearchQuery(e.target.value)}
           className="px-3 py-1 rounded-md text-black"
         />
 
-        {/* Dark mode */}
+        {/* 🌙 Dark mode */}
         <button
           onClick={() => setDarkMode(!darkMode)}
           aria-label="Toggle Dark Mode"
@@ -96,9 +98,11 @@ export default function Navbar({
           {darkMode ? "🌞" : "🌙"}
         </button>
 
-        {/* 🛒 Carrito con número de productos */}
+        {/* 🛒 Carrito */}
         <Link href="/carrito" className="relative">
-          <span className="text-2xl">🛒</span>
+          <span className="text-2xl">
+            <FaShoppingCart />
+          </span>
           {cartCount > 0 && (
             <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
               {cartCount}
@@ -106,7 +110,7 @@ export default function Navbar({
           )}
         </Link>
 
-        {/* Usuario: saludo o login */}
+        {/* 👤 Usuario */}
         {cliente ? (
           <div className="flex items-center gap-3">
             <Link
@@ -134,3 +138,155 @@ export default function Navbar({
     </nav>
   );
 }
+
+
+// "use client";
+
+// import React, { useEffect, useState } from "react";
+// import Link from "next/link";
+// import { useRouter } from "next/navigation";
+// import { useClienteAuth } from "@/context/ClienteAuthContext";
+// import { getCart } from "@/lib/cartService";
+// import { FaShoppingCart } from "react-icons/fa";
+
+// type Categoria = {
+//   _id: string;
+//   nombre: string;
+// };
+
+// type NavbarProps = {
+//   darkMode: boolean;
+//   setDarkMode: (value: boolean) => void;
+//   categories: Categoria[];
+// };
+
+// export default function Navbar({
+//   darkMode,
+//   setDarkMode,
+//   categories = [],
+// }: NavbarProps) {
+//   const router = useRouter();
+//   const { cliente, logout } = useClienteAuth();
+//   const [cartCount, setCartCount] = useState(0);
+
+//   // 🔍 Estado local del buscador
+//   const [searchQuery, setSearchQuery] = useState("");
+
+//   // ✅ Actualiza el texto en el input
+//   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+//     setSearchQuery(e.target.value);
+//   };
+
+//   // ✅ Permitir buscar al presionar Enter
+//   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+//   if (e.key === "Enter" && searchQuery.trim() !== "") {
+//     console.log("🔍 Router push =>", `/productos?q=${encodeURIComponent(searchQuery.trim())}`); // debug
+//     router.push(`/productos?q=${encodeURIComponent(searchQuery.trim())}`);
+//   }
+// };
+
+
+//   // 🧩 Calcular cantidad de productos del carrito
+//   const actualizarContador = () => {
+//     const cart = getCart();
+//     const totalCantidad = cart.reduce((acc, item) => acc + item.cantidad, 0);
+//     setCartCount(totalCantidad);
+//   };
+
+//   // 🧠 Escuchar cambios en tiempo real (storage event)
+//   useEffect(() => {
+//     actualizarContador(); // al cargar
+
+//     const handleStorageChange = () => actualizarContador();
+//     window.addEventListener("storage", handleStorageChange);
+
+//     return () => window.removeEventListener("storage", handleStorageChange);
+//   }, []);
+
+//   const handleLogout = () => {
+//     logout();
+//     router.push("/");
+//   };
+
+//   return (
+//     <nav className="flex justify-between items-center bg-terciary text-neutral px-8 py-2 font-poppins dark:bg-darkNavBg dark:text-darkNavText transition-colors duration-300">
+//       {/* Sección izquierda - categorías */}
+//       <div className="flex space-x-6 overflow-x-auto">
+//         <Link href="/" className="hover:text-primary">
+//           Inicio
+//         </Link>
+
+//         {categories.map((cat) => (
+//           <Link
+//             key={cat._id}
+//             href={`/categorias/${cat._id}`}
+//             className="hover:text-primary text-neutral dark:text-darkNavText whitespace-nowrap"
+//           >
+//             {cat.nombre}
+//           </Link>
+//         ))}
+//       </div>
+
+//       {/* Sección derecha - búsqueda, modo oscuro, usuario, carrito */}
+//       <div className="flex items-center space-x-4">
+//         {/* 🔍 Buscador */}
+//         <input
+//           type="text"
+//           placeholder="Buscar productos..."
+//           value={searchQuery}
+//           onChange={handleChange}
+//           onKeyDown={handleKeyDown}
+//           className="px-3 py-1 rounded-md text-black"
+//         />
+
+//         {/* 🌙 Dark mode */}
+//         <button
+//           onClick={() => setDarkMode(!darkMode)}
+//           aria-label="Toggle Dark Mode"
+//           className="bg-primary text-white rounded-full p-2 hover:bg-primaryHover transition-colors duration-300"
+//         >
+//           {darkMode ? "🌞" : "🌙"}
+//         </button>
+
+//         {/* 🛒 Carrito con número de productos */}
+//         <Link href="/carrito" className="relative">
+//           <span className="text-2xl">
+//             <FaShoppingCart />
+//           </span>
+//           {cartCount > 0 && (
+//             <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+//               {cartCount}
+//             </span>
+//           )}
+//         </Link>
+
+//         {/* 👤 Usuario */}
+//         {cliente ? (
+//           <div className="flex items-center gap-3">
+//             <Link
+//               href="/account"
+//               className="px-3 py-1 rounded-xl bg-primary text-white font-semibold hover:bg-primaryHover transition"
+//             >
+//               Hola, {cliente.nombre}
+//             </Link>
+//             <button
+//               onClick={handleLogout}
+//               className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition"
+//             >
+//               Cerrar
+//             </button>
+//           </div>
+//         ) : (
+//           <Link
+//             href="/auth"
+//             className="px-4 py-2 rounded-xl bg-primary text-white font-semibold hover:bg-primaryHover transition"
+//           >
+//             Iniciar sesión
+//           </Link>
+//         )}
+//       </div>
+//     </nav>
+//   );
+// }
+
+

@@ -25,50 +25,56 @@ export default function AuthPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      const method = esRegistro ? 'PUT' : 'PATCH';
-      const body = esRegistro
-        ? formData
-        : { email: formData.email, password: formData.password };
+  try {
+    let res;
+    let data;
 
-      const res = await fetch('/api/clientes', {
-        method,
+    if (esRegistro) {
+      // 🟢 REGISTRO – sigue igual, llamando a tu creación de cliente
+      res = await fetch('/api/clientes', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(formData),
       });
-
-      const data = await res.json();
+      data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Error en registro');
+    } else {
+      // 🔵 LOGIN – ahora usa el nuevo endpoint /api/auth/login
+      res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, password: formData.password }),
+      });
+      data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Error en autenticación');
-
-      // Guardar en contexto + localStorage
-      login(data.cliente, data.token);
-
-
-// Si es registro nuevo → primero completar dirección
-const params = new URLSearchParams(window.location.search);
-const redirectTo = params.get("redirect");
-
-if (esRegistro) {
-  // Registro normal: si venía de una compra, se respetará redirect; si no, va a home
-  router.push(redirectTo || "/");
-} else {
-  // Login: vuelve a donde venía o a /productos
-  router.push(redirectTo || "/productos");
-}
-
-    } catch (err: any) {
-      setError(err.message || 'Error en autenticación');
-    } finally {
-      setLoading(false);
     }
 
-    
-  };
+    // ✅ Guarda en contexto + localStorage (cliente completo + token)
+    login(data.cliente, data.token);
+
+    // 🔄 Redirecciones
+    const params = new URLSearchParams(window.location.search);
+    const redirectTo = params.get("redirect");
+
+    if (esRegistro) {
+      router.push(redirectTo || "/");
+    } else {
+      router.push(redirectTo || "/productos");
+    }
+
+  } catch (err: any) {
+    console.error("❌ handleSubmit error:", err);
+    setError(err.message || 'Error en autenticación');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 const [mostrarPassword, setMostrarPassword] = useState(false);
 const [mostrarPassword2, setMostrarPassword2] = useState(false);

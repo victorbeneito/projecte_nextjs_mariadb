@@ -40,19 +40,13 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const categoria = searchParams.get("categoria");
-    const q = searchParams.get("q");
+    const q = searchParams.get("q") || searchParams.get("search"); // ✅ acepta ambas
 
     const filtro: any = {};
     if (categoria) filtro.categoria = categoria;
     if (q) filtro.nombre = { $regex: q, $options: "i" };
 
     const productos = await Producto.find(filtro).populate("marca categoria");
-
-    // console.log(
-    //   "Ejemplo producto poblado:",
-    //   JSON.stringify(productos[0], null, 2)
-    // );
-
     return NextResponse.json({ ok: true, productos }, { status: 200 });
   } catch (error: any) {
     console.error("❌ Error en GET /api/productos:", error.message);
@@ -62,6 +56,7 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
 
 // POST /api/productos
 export async function POST(req: NextRequest) {

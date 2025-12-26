@@ -1,26 +1,30 @@
-// src/app/(public)/productos/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
-import ProductCard from '@/components/ProductCard'; // ajusta la ruta real
+import { useSearchParams } from 'next/navigation';
+import ProductCard from '@/components/ProductCard';
 
 export default function ProductosPage() {
-
+  const searchParams = useSearchParams();
+  const q = searchParams.get('q')?.trim() || ''; // ✅ lee ?q=
 
   const [productos, setProductos] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-
-
-
     const cargarProductos = async () => {
       try {
-        const res = await fetch('/api/productos', {cache: 'no-store', });
-        const data = await res.json();
+        setCargando(true);
+        // ✅ Si hay palabra, la añadimos al fetch
+        const url = q
+          ? `/api/productos?q=${encodeURIComponent(q)}`
+          : '/api/productos';
 
-        // según tu backend puede ser data o data.productos
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+        console.log('🧾 API Productos:', data);
+
         const lista = Array.isArray(data) ? data : data.productos;
         setProductos(lista || []);
       } catch (err: any) {
@@ -29,14 +33,15 @@ export default function ProductosPage() {
         setCargando(false);
       }
     };
-
     cargarProductos();
-  }, []);
+  }, [q]); // ✅ vuelve a ejecutarse al cambiar el texto en URL
 
   if (cargando) {
     return (
       <main className="min-h-screen bg-fondo px-4 py-12">
-        <div className="max-w-5xl mx-auto text-[#777777]">Cargando productos...</div>
+        <div className="max-w-5xl mx-auto text-[#777777]">
+          Cargando productos...
+        </div>
       </main>
     );
   }
@@ -53,12 +58,14 @@ export default function ProductosPage() {
     <main className="min-h-screen bg-fondo px-4 py-12">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-extrabold text-[#333333] mb-6">
-          Productos
+          {q ? `Resultados para "${q}"` : 'Productos'}
         </h1>
 
         {productos.length === 0 ? (
           <p className="text-[#777777]">
-            No hay productos disponibles.
+            {q
+              ? `No se encontraron productos con "${q}".`
+              : 'No hay productos disponibles.'}
           </p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

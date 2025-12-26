@@ -6,15 +6,21 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 interface Cliente {
   id: string;
-  _id?: string; // por si llega así desde MongoDB
+  _id?: string;
   nombre: string;
   apellidos?: string;
   email: string;
   telefono?: string;
   direccion?: string;
-  ciudad?: string;
+  direccionComplementaria?: string;
   codigoPostal?: string;
+  ciudad?: string;
+  pais?: string;
+  provincia?: string;
+  empresa?: string;
+  nif?: string;
 }
+
 
 interface ClienteAuthContextType {
   cliente: Cliente | null;
