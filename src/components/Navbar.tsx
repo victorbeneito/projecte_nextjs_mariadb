@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useClienteAuth } from "@/context/ClienteAuthContext";
 import { getCart } from "@/lib/cartService";
 import { FaShoppingCart } from "react-icons/fa";
-// @ts-expect-error Falta tipos de use-debounce
+
 import { useDebounce } from "use-debounce";
 
 type Categoria = {
