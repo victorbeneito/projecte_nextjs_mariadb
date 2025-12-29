@@ -1,14 +1,21 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
+// 🧩 Define la interfaz con el campo 'rol'
 export interface IUsuario extends mongoose.Document {
+  nombre?: string;
   email: string;
   password: string;
+  rol: "cliente" | "admin";
   comparePassword(password: string): Promise<boolean>;
 }
 
 const UsuarioSchema = new mongoose.Schema<IUsuario>(
   {
+    nombre: {
+      type: String,
+      trim: true,
+    },
     email: {
       type: String,
       required: true,
@@ -16,7 +23,16 @@ const UsuarioSchema = new mongoose.Schema<IUsuario>(
       lowercase: true,
       trim: true,
     },
-    password: { type: String, required: true },
+    password: {
+      type: String,
+      required: true,
+    },
+    // 👇 Nuevo campo de rol para diferenciar usuarios
+    rol: {
+      type: String,
+      enum: ["cliente", "admin"],
+      default: "cliente",
+    },
   },
   { timestamps: true }
 );
@@ -35,7 +51,9 @@ UsuarioSchema.methods.comparePassword = function (password: string) {
 // ✅ Usa modelo existente si ya fue declarado (Next.js HMR fix)
 const Usuario =
   mongoose.models.Usuario || mongoose.model<IUsuario>("Usuario", UsuarioSchema);
+
 export default Usuario;
+;
 
 
 

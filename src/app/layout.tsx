@@ -1,40 +1,66 @@
 import "./globals.css";
-import AppShell from "@/components/AppShell";
 import { ClienteAuthProvider } from "@/context/ClienteAuthContext";
-import { AuthProvider } from "@/context/AuthContext"; // 👈 añade esto
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata = {
   title: "Mi aplicación",
   description: "Proyecto Next.js",
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  let categorias: any[] = [];
-
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_URL ?? "http://localhost:3000"}/api/categorias`,
-      { next: { revalidate: 0 } }
-    );
-    const data = await res.json();
-    if (data.ok) categorias = data.categorias;
-  } catch (err) {
-    console.error("Error fetching categorías:", err);
-  }
-
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="es" suppressHydrationWarning>
       <body className="bg-fondo dark:bg-darkBg">
-        {/* 👇 ahora ambos contextos están disponibles en toda la app */}
         <AuthProvider>
-          <ClienteAuthProvider>
-            <AppShell categorias={categorias}>{children}</AppShell>
-          </ClienteAuthProvider>
+          <ClienteAuthProvider>{children}</ClienteAuthProvider>
         </AuthProvider>
       </body>
     </html>
   );
 }
+
+
+// import "./globals.css";
+// import AppShell from "@/components/AppShell";
+// import { ClienteAuthProvider } from "@/context/ClienteAuthContext";
+// import { AuthProvider } from "@/context/AuthContext"; // 👈 añade esto
+
+// export const metadata = {
+//   title: "Mi aplicación",
+//   description: "Proyecto Next.js",
+// };
+
+// export default async function RootLayout({ children }: { children: React.ReactNode }) {
+//   let categorias: any[] = [];
+
+//   try {
+//     const res = await fetch(
+//       `${process.env.NEXT_PUBLIC_URL ?? "http://localhost:3000"}/api/categorias`,
+//       { next: { revalidate: 0 } }
+//     );
+//     const data = await res.json();
+//     if (data.ok) categorias = data.categorias;
+//   } catch (err) {
+//     console.error("Error fetching categorías:", err);
+//   }
+
+//   return (
+//     <html lang="es" suppressHydrationWarning>
+//       <body className="bg-fondo dark:bg-darkBg">
+//         {/* 👇 ahora ambos contextos están disponibles en toda la app */}
+//         <AuthProvider>
+//           <ClienteAuthProvider>
+//             <AppShell categorias={categorias}>{children}</AppShell>
+//           </ClienteAuthProvider>
+//         </AuthProvider>
+//       </body>
+//     </html>
+//   );
+// }
 
 
 // import "./globals.css";

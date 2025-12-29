@@ -7,16 +7,27 @@ import { useRouter } from "next/navigation";
 
 interface Pedido {
   _id: string;
+  numeroPedido?: string;
+
   cliente: {
     nombre: string;
     email: string;
   };
-  pago: {
-    totalFinal: number;
+
+  pago?: {
+    metodo?: string;
+    totalFinal?: number;
   };
+
+  // 👇 Añadir este campo
+  totalFinal?: number;
+
   estado: string;
-  fecha: string;
+  fecha?: string;
+  fechaPedido?: string;
+  createdAt?: string;
 }
+
 
 export default function AdminPedidos() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -123,12 +134,14 @@ export default function AdminPedidos() {
                       </td>
 
                       <td className="px-8 py-6">
-                        <span className="text-2xl font-bold text-[#F7A38B]">
-                          €
-                          {pedido.pago?.totalFinal
-                            ? pedido.pago.totalFinal.toFixed(2)
-                            : "0.00"}
-                        </span>
+                       <p className="text-sm font-semibold text-[#6BAEC9]">
+  €
+  {pedido.pago?.totalFinal
+    ? pedido.pago.totalFinal.toFixed(2)
+    : pedido.totalFinal
+    ? pedido.totalFinal.toFixed(2)
+    : "0.00"}
+</p>
                       </td>
 
                       <td className="px-8 py-6">
@@ -146,7 +159,13 @@ export default function AdminPedidos() {
                       </td>
 
                       <td className="px-8 py-6 text-sm text-[#6BAEC9]">
-                        {new Date(pedido.fecha).toLocaleDateString()}
+                        {pedido.fecha
+    ? new Date(pedido.fecha).toLocaleDateString("es-ES")
+    : pedido.fechaPedido
+    ? new Date(pedido.fechaPedido).toLocaleDateString("es-ES")
+    : pedido.createdAt
+    ? new Date(pedido.createdAt).toLocaleDateString("es-ES")
+    : "Fecha no disponible"}
                       </td>
 
                       <td className="px-8 py-6 text-right">
