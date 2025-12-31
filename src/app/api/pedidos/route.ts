@@ -67,11 +67,20 @@ export async function POST(req: Request) {
 /* *************************************
    🧾 LISTAR PEDIDOS (GET)
 ************************************* */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await dbConnect();
-    const pedidos = await Pedido.find().sort({ createdAt: -1 }).lean();
-    return NextResponse.json({ pedidos });
+    const { searchParams } = new URL(req.url);
+    const clienteId = searchParams.get("clienteId");
+
+    // 🔹 Si hay clienteId => filtrar solo sus pedidos
+    const filtro = clienteId ? { clienteId } : {};
+
+    const pedidos = await Pedido.find(filtro)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return NextResponse.json({ ok: true, pedidos });
   } catch (error: any) {
     console.error("❌ Error al obtener pedidos:", error);
     return NextResponse.json(
