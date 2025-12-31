@@ -476,7 +476,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <button
                   type="button"
                   className="px-4 py-2 rounded-[8px] border border-[#d3c7b4] text-[#555555] bg-primaryHover hover:bg-fondoCasilla transition-colors"
-                  onClick={() => router.push("/productos")}
+                  onClick={() => router.push("/account")}
                 >
                   Omitir por ahora
                 </button>

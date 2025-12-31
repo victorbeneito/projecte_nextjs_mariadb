@@ -33,11 +33,11 @@ export default function Navbar({
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch] = useDebounce(searchQuery, 400); // espera 0.4 s antes de aplicar la búsqueda
 
-  // 🚀 Cuando cambia el valor "debounced", actualiza la URL
   useEffect(() => {
-    const query = debouncedSearch.trim();
-    router.push(query ? `/productos?q=${encodeURIComponent(query)}` : "/productos");
-  }, [debouncedSearch, router]);
+  const query = debouncedSearch.trim();
+  if (!query) return; // ❌ no hace nada si está vacío
+  router.push(`/productos?q=${encodeURIComponent(query)}`);
+}, [debouncedSearch, router]);
 
   // 🧺 Contador de carrito
   const actualizarContador = () => {

@@ -1,461 +1,84 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import dbConnect from "@/lib/mongoose";
 import Pedido from "@/models/Pedido";
 import Cliente from "@/models/Cliente";
-import Cupon from "@/models/Cupon";
-import { verifyToken } from "@/lib/verifyToken";
 
-/**
- * Crea un pedido real en MongoDB desde el checkout
- * Recibe: { carrito, metodoEnvio, metodoPago, descuento, totalFinal, cuponCodigo }
- */
+/* *********************************************
+   ✅  CREAR PEDIDO (POST)  /api/pedidos/new
+********************************************* */
 export async function POST(req: Request) {
   try {
-    // 1️⃣ Conexión a la base de datos
     await dbConnect();
 
-    // 2️⃣ Verificamos el token del CLIENTE
-    const verified = await verifyToken(req, "cliente");
-    if (verified instanceof Response) return verified;
-
-    const clienteId = verified.id;
-
-    // 3️⃣ Leemos el cuerpo del request
     const body = await req.json();
-    const {
-      carrito,
-      metodoEnvio,
-      metodoPago,
-      descuento,
-      totalFinal,
-      cuponCodigo,
-    } = body;
+    console.log("📦 Datos recibidos:", body); // ← verás esto en la consola del servidor
 
-    if (!carrito || carrito.length === 0) {
-      return NextResponse.json(
-        { error: "El carrito está vacío" },
-        { status: 400 }
-      );
-    }
+   // Si tu contexto añade el token, podrías decodificar JWT para obtener id y email.
+// Pero como ya los tienes en useClienteAuth, envíalos desde el front (ahora lo haremos abajo).
 
-    // 4️⃣ Buscamos al cliente
-    const cliente = await Cliente.findById(clienteId);
-    if (!cliente)
-      return NextResponse.json(
-        { error: "Cliente no encontrado" },
-        { status: 404 }
-      );
+// 🔹 Leer cliente autenticado que viene del contexto
+const clienteData = body.cliente || {}; // Si el front lo enviara en el body, lo usamos.
 
-    // 5️⃣ Marcamos el cupón como usado (si existe)
-    let cuponUsado = null;
-    if (cuponCodigo) {
-      cuponUsado = await Cupon.findOneAndUpdate(
-        { codigo: cuponCodigo.toUpperCase() },
-        { usado: true },
-        { new: true }
-      );
-      await Cupon.updateOne(
-        { codigo: cuponCodigo.toUpperCase() },
-        { $addToSet: { clientesUsados: clienteId } }
-      );
-    }
+const clienteAInsertar = {
+  nombre: clienteData.nombre ?? "Cliente",
+  email: clienteData.email ?? "sinemail@local",
+  telefono: clienteData.telefono || "",
+  direccion: clienteData.direccion || "",
+  ciudad: clienteData.ciudad || "",
+  cp: clienteData.cp || clienteData.codigoPostal || "",
+};
 
-    // 6️⃣ Creamos un nuevo pedido, con valores por defecto seguros
-    const nuevoPedido = new Pedido({
-      clienteId: cliente._id,
-      cliente: {
-        nombre: cliente.nombre,
-        email: cliente.email,
-        telefono: cliente.telefono,
-        direccion: cliente.direccion,
-        ciudad: cliente.ciudad,
-        cp: cliente.cp,
-      },
+// Si tu contexto añade el token, podrías decodificar JWT para obtener id y email.
+// Pero como ya los tienes en useClienteAuth, envíalos desde el front (ahora lo haremos abajo).
 
-      // 🧩 Asegura formato consistente con el panel
-      envio: {
-        metodo: metodoEnvio?.metodo || "tienda",
-        coste: metodoEnvio?.coste ?? 0,
-      },
-      pago: {
-        metodo: metodoPago?.metodo || "desconocido",
-        totalFinal: Number(totalFinal ?? 0),
-      },
+const clienteId =
+  clienteData._id ||
+  body.clienteId ||
+  null; // enviamos desde front el id del cliente
 
-      productos: carrito.map((p: any) => ({
-        productoId: p._id,
-        nombre: p.nombre,
-        cantidad: p.cantidad,
-        precioUnitario: p.precioFinal ?? p.precio,
-        subtotal: ((p.precioFinal ?? p.precio) * p.cantidad) || 0,
-      })),
+const productosNormalizados = (body.carrito || []).map((p: any) => ({
+  productoId: p._id,
+  nombre: p.nombre,
+  cantidad: p.cantidad,
+  precioUnitario: p.precioFinal ?? p.precio,
+  subtotal: (p.precioFinal ?? p.precio) * p.cantidad,
+}));
 
-      estado: "pendiente",
-      // 🕒 Usa el mismo campo que el panel espera
-      fecha: new Date(),
+const nuevoPedido = new Pedido({
+  clienteId,
+  cliente: clienteAInsertar,
+  envio: body.metodoEnvio || body.envio,
+  pago: body.metodoPago || body.pago,
+  productos: productosNormalizados,
+  cupon: {
+    codigo: body.cuponCodigo || null,
+    descuento: body.descuento || 0,
+  },
+  subtotal: body.subtotal || 0,
+  descuento: body.descuento || 0,
+  totalFinal: body.totalFinal,
+  estado: body.estado || "pendiente",
+  fechaPedido: new Date(),
+});
 
-      numeroPedido: "", // se rellena con pre('save') en el modelo
-      cupon: cuponUsado
-        ? { codigo: cuponUsado.codigo, descuento: cuponUsado.descuento }
-        : undefined,
 
-      descuento: Number(descuento ?? 0),
-    });
-
-    // 7️⃣ Guardamos
     await nuevoPedido.save();
-    console.log("✅ Pedido creado:", nuevoPedido._id);
 
+    console.log("✅ Pedido guardado:", nuevoPedido._id);
     return NextResponse.json({
-      message: "Pedido creado correctamente",
+      ok: true,
+      message: "Pedido creado correctamente ✅",
       pedido: nuevoPedido,
     });
   } catch (error: any) {
-    console.error("❌ Error al crear pedido:", error.message || error);
+    console.error("❌ Error al crear pedido:", error);
     return NextResponse.json(
-      { error: "Error al crear pedido", detalle: error.message || error },
+      {
+        error: "Error al crear pedido",
+        detalle: error.message,
+      },
       { status: 500 }
     );
   }
 }
-
-
-// import { NextResponse } from "next/server";
-// import dbConnect from "@/lib/mongoose";
-// import Pedido from "@/models/Pedido";
-// import Cliente from "@/models/Cliente";
-// import Cupon from "@/models/Cupon";
-// import { verifyToken } from "@/lib/verifyToken";
-
-// /**
-//  * Crea un pedido real en MongoDB desde el checkout
-//  * Recibe: { carrito, metodoEnvio, metodoPago, descuento, totalFinal, cuponCodigo }
-//  */
-// export async function POST(req: Request) {
-//   try {
-//     // 1️⃣ Conexión a la base de datos
-//     await dbConnect();
-
-//     // 2️⃣ Verificamos el token del CLIENTE
-//     const verified = await verifyToken(req, "cliente");
-//     if (verified instanceof Response) return verified; // devuelve error 401/403 si falla
-
-//     const clienteId = verified.id; // tomado del token
-
-//     // 3️⃣ Leemos el cuerpo del request
-//     const body = await req.json();
-//     const {
-//       carrito,
-//       metodoEnvio,
-//       metodoPago,
-//       descuento,
-//       totalFinal,
-//       cuponCodigo,
-//     } = body;
-
-//     if (!carrito || carrito.length === 0) {
-//       return NextResponse.json(
-//         { error: "El carrito está vacío" },
-//         { status: 400 }
-//       );
-//     }
-
-//     // 4️⃣ Buscamos al cliente
-//     const cliente = await Cliente.findById(clienteId);
-//     if (!cliente)
-//       return NextResponse.json(
-//         { error: "Cliente no encontrado" },
-//         { status: 404 }
-//       );
-
-//     // 5️⃣ Marcamos el cupón como usado (si existe)
-//     let cuponUsado = null;
-//     if (cuponCodigo) {
-//       cuponUsado = await Cupon.findOneAndUpdate(
-//         { codigo: cuponCodigo.toUpperCase() },
-//         { usado: true },
-//         { new: true }
-//       );
-//       // guardamos usuario en lista de clientesUsados
-//       await Cupon.updateOne(
-//         { codigo: cuponCodigo.toUpperCase() },
-//         { $addToSet: { clientesUsados: clienteId } }
-//       );
-//     }
-
-//     // 6️⃣ Creamos un nuevo pedido
-//     const nuevoPedido = new Pedido({
-//       clienteId: cliente._id,
-//       cliente: {
-//         nombre: cliente.nombre,
-//         email: cliente.email,
-//         telefono: cliente.telefono,
-//         direccion: cliente.direccion,
-//         ciudad: cliente.ciudad,
-//         cp: cliente.cp,
-//       },
-//       envio: metodoEnvio,
-//       pago: metodoPago,
-//       productos: carrito.map((p: any) => ({
-//         productoId: p._id,
-//         nombre: p.nombre,
-//         cantidad: p.cantidad,
-//         precioUnitario: p.precioFinal ?? p.precio,
-//         subtotal: (p.precioFinal ?? p.precio) * p.cantidad,
-//       })),
-//       estado: "pendiente",
-//       fechaPedido: new Date(),
-//       numeroPedido: "", // se rellena con pre('save') en el modelo
-//       cupon: cuponUsado
-//         ? { codigo: cuponUsado.codigo, descuento: cuponUsado.descuento }
-//         : undefined,
-//       totalFinal,
-//       descuento,
-//     });
-
-//     // 7️⃣ Guardamos el pedido
-//     await nuevoPedido.save();
-
-//     console.log("✅ Pedido creado:", nuevoPedido._id);
-
-//     return NextResponse.json({
-//       message: "Pedido creado correctamente",
-//       pedido: nuevoPedido,
-//     });
-//   } catch (error: any) {
-//     console.error("❌ Error al crear pedido:", error.message || error);
-//     return NextResponse.json(
-//       { error: "Error al crear pedido", detalle: error.message || error },
-//       { status: 500 }
-//     );
-//   }
-// }
-
-
-
-// import { NextResponse } from "next/server";
-// import jwt from "jsonwebtoken";
-// import dbConnect from "@/lib/mongoose";
-// import Pedido from "@/models/Pedido";
-// import Cliente from "@/models/Cliente";
-// import Cupon from "@/models/Cupon";
-// import { verifyToken } from "@/lib/verifyToken";
-
-// /**
-//  * Crea un pedido real en MongoDB desde el checkout
-//  * Recibe: { carrito, metodoEnvio, metodoPago, descuento, totalFinal, cuponCodigo }
-//  */
-// export async function POST(req: Request) {
-
-//     const verified = await verifyToken(req, 'cliente');
-//   if (verified instanceof Response) return verified; // Si hay error 403/401 lo devuelve directo
-
-//   const usuarioId = verified.id; // cliente autenticado
-//   try {
-//     // 1️⃣ Conexión a la base de datos
-//     await dbConnect();
-
-//     // 2️⃣ Verificamos el token de autenticación
-//     const header = req.headers.get("authorization");
-//     const token = header?.split(" ")[1];
-//     if (!token)
-//       return NextResponse.json({ error: "Token requerido" }, { status: 401 });
-
-//     if (!process.env.SECRETO_JWT)
-//       throw new Error("Falta SECRETO_JWT en variables de entorno (.env)");
-
-//     let decoded: any;
-//     try {
-//       decoded = jwt.verify(token, process.env.SECRETO_JWT);
-//     } catch (err) {
-//       console.error("❌ Token inválido:", err);
-//       return NextResponse.json({ error: "Token inválido" }, { status: 403 });
-//     }
-
-//     if (typeof decoded === "string" || !decoded.id) {
-//       return NextResponse.json({ error: "Token malformado" }, { status: 403 });
-//     }
-
-//     // 3️⃣ Leemos el cuerpo del request
-//     const body = await req.json();
-//     const {
-//       carrito,
-//       metodoEnvio,
-//       metodoPago,
-//       descuento,
-//       totalFinal,
-//       cuponCodigo,
-//     } = body;
-
-//     if (!carrito || carrito.length === 0) {
-//       return NextResponse.json(
-//         { error: "El carrito está vacío" },
-//         { status: 400 }
-//       );
-//     }
-
-//     // 4️⃣ Buscamos al cliente
-//     const cliente = await Cliente.findById(decoded.id);
-//     if (!cliente)
-//       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
-
-//     // 5️⃣ Marcamos el cupón como usado (si existe)
-//     let cuponUsado = null;
-//     if (cuponCodigo) {
-//       cuponUsado = await Cupon.findOneAndUpdate(
-//         { codigo: cuponCodigo.toUpperCase() },
-//         { usado: true },
-//         { new: true }
-//       );
-//       // Guardamos usuario en lista de clientesUsados
-//       await Cupon.updateOne(
-//         { codigo: cuponCodigo.toUpperCase() },
-//         { $addToSet: { clientesUsados: decoded.id } }
-//       );
-//     }
-
-//     // 6️⃣ Creamos un nuevo pedido
-//     const nuevoPedido = new Pedido({
-//       clienteId: cliente._id,
-//       cliente: {
-//         nombre: cliente.nombre,
-//         email: cliente.email,
-//         telefono: cliente.telefono,
-//         direccion: cliente.direccion,
-//         ciudad: cliente.ciudad,
-//         cp: cliente.cp,
-//       },
-//       envio: metodoEnvio,
-//       pago: metodoPago,
-//       productos: carrito.map((p: any) => ({
-//         productoId: p._id,
-//         nombre: p.nombre,
-//         cantidad: p.cantidad,
-//         precioUnitario: p.precioFinal ?? p.precio,
-//         subtotal: (p.precioFinal ?? p.precio) * p.cantidad,
-//       })),
-//       estado: "pendiente",
-//       fechaPedido: new Date(),
-//       numeroPedido: "", // se rellena con pre('save')
-//       cupon: cuponUsado
-//         ? { codigo: cuponUsado.codigo, descuento: cuponUsado.descuento }
-//         : undefined,
-//       totalFinal,
-//       descuento,
-//     });
-
-//     // 7️⃣ Guardamos el pedido
-//     await nuevoPedido.save();
-
-//     console.log("✅ Pedido creado:", nuevoPedido._id);
-
-//     return NextResponse.json({
-//       message: "Pedido creado correctamente",
-//       pedido: nuevoPedido,
-//     });
-//   } catch (error: any) {
-//     console.error("❌ Error al crear pedido:", error.message || error);
-//     return NextResponse.json(
-//       { error: "Error al crear pedido", detalle: error.message || error },
-//       { status: 500 }
-//     );
-//   }
-// }
-
-
-// import { NextResponse } from "next/server";
-// import jwt from "jsonwebtoken";
-// import dbConnect from "@/lib/mongoose";
-// import Pedido from "@/models/Pedido";
-// import Cliente from "@/models/Cliente";
-// import Cupon from "@/models/Cupon";
-
-// /**
-//  * Crea un pedido real en MongoDB desde el checkout
-//  * Recibe: { carrito, metodoEnvio, metodoPago, descuento, totalFinal, cupón }
-//  */
-// export async function POST(req: Request) {
-//   try {
-//     await dbConnect();
-
-//     // 1️⃣  Verificamos el token del usuario
-//     const token = req.headers.get("authorization")?.split(" ")[1];
-//     if (!token)
-//       return NextResponse.json({ error: "Token requerido" }, { status: 401 });
-
-//     const decoded = jwt.verify(token, process.env.SECRETO_JWT!);
-//     if (typeof decoded === "string" || !decoded.id)
-//       return NextResponse.json({ error: "Token inválido" }, { status: 403 });
-
-//     // 2️⃣  Leemos datos del cuerpo del POST
-//     const body = await req.json();
-//     const { carrito, metodoEnvio, metodoPago, descuento, totalFinal, cuponCodigo } = body;
-
-//     if (!carrito || carrito.length === 0)
-//       return NextResponse.json({ error: "El carrito está vacío" }, { status: 400 });
-
-//     // 3️⃣  Buscamos al cliente
-//     const cliente = await Cliente.findById(decoded.id);
-//     if (!cliente)
-//       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
-
-//     // 4️⃣  Marcamos el cupón como usado (si existe)
-//     let cuponUsado = null;
-//     if (cuponCodigo) {
-//       cuponUsado = await Cupon.findOneAndUpdate(
-//         { codigo: cuponCodigo.toUpperCase() },
-//         { usado: true },
-//         { new: true }
-//       );
-//     }
-
-//     // 5️⃣  Creamos el pedido
-//     const nuevoPedido = new Pedido({
-//       clienteId: cliente._id,
-//       cliente: {
-//         nombre: cliente.nombre,
-//         email: cliente.email,
-//         telefono: cliente.telefono,
-//         direccion: cliente.direccion,
-//         ciudad: cliente.ciudad,
-//         cp: cliente.cp,
-//       },
-//       envio: metodoEnvio,
-//       pago: metodoPago,
-//       productos: carrito.map((p: any) => ({
-//         productoId: p._id,
-//         nombre: p.nombre,
-//         cantidad: p.cantidad,
-//         precioUnitario: p.precioFinal ?? p.precio,
-//         subtotal: (p.precioFinal ?? p.precio) * p.cantidad,
-//       })),
-//       estado: "pendiente",
-//       fechaPedido: new Date(),
-//       numeroPedido: "", // se rellena automáticamente en el middleware pre("save")
-//       cupon: cuponUsado
-//         ? { codigo: cuponUsado.codigo, descuento: cuponUsado.descuento }
-//         : undefined,
-//       totalFinal,
-//       descuento,
-//     });
-
-//     if (body.cuponCodigo) {
-//   await Cupon.updateOne(
-//     { codigo: body.cuponCodigo },
-//     { $addToSet: { clientesUsados: decoded.id } } // evita duplicados
-//   );
-// }
-
-
-//     await nuevoPedido.save();
-
-//     return NextResponse.json({
-//       message: "Pedido creado correctamente",
-//       pedido: nuevoPedido,
-//     });
-//   } catch (error) {
-//     console.error("❌ Error creando pedido:", error);
-//     return NextResponse.json({ error: "Error al crear pedido" }, { status: 500 });
-//   }
-
-// }

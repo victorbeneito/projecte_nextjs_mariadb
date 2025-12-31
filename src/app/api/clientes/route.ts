@@ -9,7 +9,7 @@ async function hashPassword(password: string): Promise<string> {
   return await bcrypt.hash(password, 10);
 }
 
-// Middleware para verificar JWT
+// Middleware para verificar JWT (acepta cliente o admin)
 async function verificarToken(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (!auth?.startsWith("Bearer ")) {
@@ -20,16 +20,24 @@ async function verificarToken(req: NextRequest) {
   }
 
   const token = auth.replace("Bearer ", "");
+
+  // Intentamos validar con las dos claves posibles
   try {
-    jwt.verify(token, process.env.SECRETO_JWT!);
-    return null; // Token válido
+    jwt.verify(token, process.env.SECRETO_JWT_CLIENTE!);
+    return null; // ✅ token de cliente válido
   } catch {
-    return NextResponse.json(
-      { ok: false, error: "Token inválido" },
-      { status: 401 }
-    );
+    try {
+      jwt.verify(token, process.env.SECRETO_JWT_ADMIN!);
+      return null; // ✅ token de admin válido
+    } catch {
+      return NextResponse.json(
+        { ok: false, error: "Token inválido" },
+        { status: 401 }
+      );
+    }
   }
 }
+
 
 // GET - Listar clientes o buscar por nombre/email/id
 export async function GET(req: NextRequest) {

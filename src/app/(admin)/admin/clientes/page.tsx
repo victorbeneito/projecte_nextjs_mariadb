@@ -30,8 +30,9 @@ export default function AdminClientes() {
 
       const res = await fetch(url, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-        },
+  Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}`,
+},
+
       });
 
       const data = await res.json();

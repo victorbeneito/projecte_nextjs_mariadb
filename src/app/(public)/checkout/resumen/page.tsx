@@ -101,13 +101,15 @@ export default function ResumenPage() {
     const totalFinal = subtotal + envioCoste + pagoRecargo - descuentoImporte;
 
     const body = {
-      carrito,
-      metodoEnvio,
-      metodoPago,
-      descuento,
-      totalFinal,
-      cuponCodigo: codigo,
-    };
+  carrito,
+  metodoEnvio,
+  metodoPago,
+  descuento,
+  totalFinal,
+  cuponCodigo: codigo,
+  cliente, // 👈 añadimos datos del cliente logueado
+};
+
 
     try {
       const res = await fetchWithAuth("/api/pedidos/new", token, {
