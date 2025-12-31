@@ -10,10 +10,13 @@ export default async function SiteLayout({
   let categorias: any[] = [];
 
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_URL ?? "http://localhost:3000"}/api/categorias`,
-      { next: { revalidate: 0 } }
-    );
+    // 🔹 Base URL válida en desarrollo y producción
+    const baseUrl =
+      process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000";
+
+    const res = await fetch(`${baseUrl}/api/categorias`, { cache: "no-store" });
     const data = await res.json();
     if (data.ok) categorias = data.categorias;
   } catch (err) {
@@ -22,3 +25,4 @@ export default async function SiteLayout({
 
   return <AppShell categorias={categorias}>{children}</AppShell>;
 }
+
