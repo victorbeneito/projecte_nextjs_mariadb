@@ -1,40 +1,66 @@
-// src/app/productos/[id]/page.tsx
-
+import { notFound } from "next/navigation";
 import ProductDetail from "./ProductDetail";
 
-// Si tu Next es 15 y te da el aviso de que params es Promise, usa este tipo:
+// 1. Definimos los props para Next.js 15+ (params es una Promise)
 type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-// Si no te da ese aviso y funciona normal, puedes cambiarlo por:
-// type PageProps = { params: { id: string } };
+// 2. Función helper para obtener la URL base
+// Esto evita errores cuando fetch se ejecuta en el servidor
+const getBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  return "http://localhost:3000"; // Fallback por defecto para local
+};
 
 async function getProducto(id: string) {
-  // URL relativa para evitar problemas con NEXT_PUBLIC_BASE_URL
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/productos/${id}`, {
-    cache: "no-store",
-  });
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/api/productos/${id}`;
 
-  if (!res.ok) {
-    // Aquí podrías lanzar notFound() si quieres
-    throw new Error("No se pudo cargar el producto");
+  console.log(`📡 [Page] Buscando producto ID: ${id} en URL: ${url}`);
+
+  try {
+    const res = await fetch(url, {
+      cache: "no-store", // Evitamos caché antigua
+      headers: { "Content-Type": "application/json" }
+    });
+
+    if (!res.ok) {
+      console.error(`❌ [Page] La API devolvió error: ${res.status} ${res.statusText}`);
+      return null;
+    }
+
+    const data = await res.json();
+    
+    // Verificación extra por si la API devuelve ok:true pero sin producto
+    if (!data || !data.producto) {
+        console.error("❌ [Page] Datos vacíos recibidos:", data);
+        return null;
+    }
+
+    return data.producto;
+
+  } catch (error) {
+    console.error("❌ [Page] Error crítico de conexión:", error);
+    return null;
   }
-
-  const data = await res.json();
-  return data.producto;
 }
 
-export default async function ProductoPage(props: PageProps) {
-  // Descomenta UNA de las dos líneas según tu versión de Next:
+export default async function ProductoPage({ params }: PageProps) {
+  // 3. Desempaquetamos la promesa de los params (Obligatorio en Next 15)
+  const resolvedParams = await params;
+  const { id } = resolvedParams;
 
-  // 1) Para Next 15 (params es Promise):
-  const { id } = await props.params;
-
-  // 2) Para versiones donde params NO es Promise:
-  // const { id } = props.params;
-
+  // 4. Intentamos obtener el producto
   const producto = await getProducto(id);
 
+  // 5. Si no hay producto, mostramos la página 404 de Next.js
+  if (!producto) {
+    notFound(); 
+  }
+
+  // 6. Si todo va bien, mostramos el componente cliente
   return <ProductDetail producto={producto} />;
 }

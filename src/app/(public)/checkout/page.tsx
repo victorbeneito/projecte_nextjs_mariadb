@@ -160,7 +160,7 @@ export default function CheckoutPage() {
         <h2 className="text-xl font-semibold mb-4">Resumen del pedido</h2>
         {carrito.map((item) => (
           <div
-            key={item._id}
+            key={item.id}
             className="flex justify-between items-center text-sm mb-3"
           >
             <div>

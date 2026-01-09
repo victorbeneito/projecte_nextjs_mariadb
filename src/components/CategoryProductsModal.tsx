@@ -4,12 +4,12 @@ import React, { useState } from "react";
 import clienteAxios from "@/lib/axiosClient";
 
 type Categoria = {
-  _id: string;
+  id: number;
   nombre: string;
 };
 
 type Producto = {
-  _id: string;
+  id: number;
   nombre: string;
   descripcion?: string;
   precio: number;
@@ -25,14 +25,14 @@ export default function CategoryProductsModal({ categories }: Props) {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categoriaNombre, setCategoriaNombre] = useState("");
 
-  const categoriasBanner: Record<string, string | string[] | undefined> = {
-    "Estores Digitales": categories.find((c) => c.nombre === "Estores Digitales")?._id,
-    "Estores Lisos": categories.find((c) => c.nombre === "Estores Lisos")?._id,
-    "Fundas de sofá": categories.find((c) => c.nombre === "Fundas de sofá")?._id,
-    "Cojines": categories.find((c) => c.nombre === "Cojines")?._id,
+  const categoriasBanner: Record<string, number | number[] | undefined> = {
+    "Estores Digitales": categories.find((c) => c.nombre === "Estores Digitales")?.id,
+    "Estores Lisos": categories.find((c) => c.nombre === "Estores Lisos")?.id,
+    "Fundas de sofá": categories.find((c) => c.nombre === "Fundas de sofá")?.id,
+    "Cojines": categories.find((c) => c.nombre === "Cojines")?.id,
     "Ropa de cama": categories
       .filter((c) => ["Fundas Nórdicas", "Colchas", "Sabanas"].includes(c.nombre))
-      .map((c) => c._id),
+      .map((c) => c.id),
   };
 
   async function openModalPorCategoria(categoriaClave: string) {
@@ -114,7 +114,7 @@ export default function CategoryProductsModal({ categories }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {productos.length > 0 ? (
                 productos.map((p) => (
-                  <div key={p._id} className="border p-4 rounded shadow-sm">
+                  <div key={p.id} className="border p-4 rounded shadow-sm">
                     <h3 className="font-semibold">{p.nombre}</h3>
                     {p.imagen && (
                       <img

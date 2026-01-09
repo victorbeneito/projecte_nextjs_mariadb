@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 
 
 interface Pedido {
-  _id: string;
+  id: number;
   numeroPedido?: string;
+
+  nombre: string;
 
   cliente: {
     nombre: string;
@@ -50,11 +52,11 @@ export default function AdminPedidos() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (!confirm("¿Seguro que deseas eliminar este pedido?")) return;
     try {
       await fetch(`/api/pedidos/${id}`, { method: "DELETE" });
-      setPedidos((prev) => prev.filter((p) => p._id !== id));
+      setPedidos((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
       console.error("Error al eliminar pedido:", err);
     }
@@ -124,14 +126,16 @@ export default function AdminPedidos() {
                   </tr>
                 ) : (
                   pedidos.map((pedido) => (
-                    <tr key={pedido._id} className="border-t hover:bg-[#F8F8F5]">
+                    <tr key={pedido.id} className="border-t hover:bg-[#F8F8F5]">
                       <td className="px-8 py-6 font-mono text-sm text-[#6BAEC9]">
-                        {pedido._id.slice(-8)}
+                        {pedido.id}
                       </td>
 
                       <td className="px-8 py-6 font-semibold text-[#4A4A4A]">
-                        {pedido.cliente?.nombre || "Sin nombre"}
-                      </td>
+   {pedido.nombre && pedido.nombre !== "Cliente Importado" 
+      ? pedido.nombre 
+      : (pedido.cliente?.nombre || "Sin nombre")}
+</td>
 
                       <td className="px-8 py-6">
                        <p className="text-sm font-semibold text-[#6BAEC9]">
@@ -172,7 +176,7 @@ export default function AdminPedidos() {
                         <div className="flex gap-2 justify-end">
                           <button
                             onClick={() =>
-                              router.push(`/admin/pedidos/${pedido._id}`)
+                              router.push(`/admin/pedidos/${pedido.id}`)
                             }
                             className="p-2 hover:bg-[#6BAEC9]/10 rounded-xl transition-colors"
                             title="Ver / Editar pedido"
@@ -199,7 +203,7 @@ export default function AdminPedidos() {
                           </button>
 
                           <button
-                            onClick={() => handleDelete(pedido._id)}
+                            onClick={() => handleDelete(pedido.id)}
                             className="p-2 hover:bg-[#F7A38B]/10 rounded-xl transition-colors"
                             title="Eliminar pedido"
                           >

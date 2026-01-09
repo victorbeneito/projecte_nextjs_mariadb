@@ -2,25 +2,27 @@
 
 export const dynamic = "force-dynamic";
 
-
 import React, { useState, useEffect } from "react";
 import Banner from "@/components/Banner";
 import ProductGrid from "@/components/ProductGrid";
-import BannersSection from "@/components/BannersSection";
+import BannersSection from "@/components/BannersSection"; // Revisa también este archivo si usa categorías
 import BannerPrincipal from "@/components/BannerPrincipal";
 import SeoText from "@/components/SeoText";
 import SubscribeForm from "@/components/SubscribeForm";
 import clienteAxios from "@/lib/axiosClient";
 
+// Definimos los tipos alineados con MariaDB (ids numéricos)
 type Categoria = {
-  _id: string;
+  id: number;
   nombre: string;
 };
 
 type Producto = {
-  _id: string;
+  id: number;
   nombre: string;
-  // añade aquí los campos que uses en ProductGrid (precio, imagenes, etc.)
+  precio: number;   // Añade campos básicos para evitar errores de TS
+  imagenes: string[];
+  stock: number;
 };
 
 type CategoriasResponse = {
@@ -35,7 +37,7 @@ type ProductosResponse = {
 
 export default function HomePage() {
   const [categories, setCategories] = useState<Categoria[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(""); // Aunque no veo el input aquí, asumo que está en BannerPrincipal o Navbar
   const [productosDestacados, setProductosDestacados] = useState<Producto[]>([]);
   const [productosFiltrados, setProductosFiltrados] = useState<Producto[]>([]);
   const [busquedaActiva, setBusquedaActiva] = useState(false);
@@ -44,7 +46,7 @@ export default function HomePage() {
   useEffect(() => {
     const cargarCategorias = async () => {
       try {
-        const { data } = await clienteAxios.get<CategoriasResponse>("/categorias");
+        const { data } = await clienteAxios.get<CategoriasResponse>("/categorias"); // Asegúrate de tener esta ruta API
         if (data.ok) setCategories(data.categorias || []);
       } catch (error) {
         console.error("Error cargando categorías:", error);
@@ -53,7 +55,7 @@ export default function HomePage() {
     cargarCategorias();
   }, []);
 
-  // Buscar productos (destacados o por búsqueda)
+  // Buscar productos
   useEffect(() => {
     const buscarProductos = async () => {
       try {
@@ -83,18 +85,17 @@ export default function HomePage() {
 
   return (
     <div className="bg-fondo dark:bg-darkBg bg-w-full">
-      {/* 1. Banner */}
       <section className="max-w-7xl mx-auto">
         <Banner />
       </section>
 
-      {/* 2. BannerPrincipal */}
       <section className="max-w-7xl mx-auto">
+        {/* Si aquí salía error, asegúrate de haber modificado BannerPrincipal.tsx para aceptar 'id: number' */}
         <BannerPrincipal categories={categories} />
       </section>
 
-      {/* 3. Productos Destacados / Búsqueda */}
       <section className="max-w-7xl mx-auto">
+        {/* Si aquí salía error, asegúrate de haber modificado ProductGrid.tsx para aceptar 'id: number' */}
         <ProductGrid
           productosDestacados={productosDestacados}
           productosFiltrados={productosFiltrados}
@@ -102,12 +103,11 @@ export default function HomePage() {
         />
       </section>
 
-      {/* 4. BannersSection */}
       <section className="max-w-7xl mx-auto">
+        {/* Posiblemente tengas que actualizar BannersSection también si usa categorías */}
         <BannersSection categories={categories} />
       </section>
 
-      {/* 5. SEO + Newsletter */}
       <section className="max-w-6xl mx-auto">
         <SeoText />
         <SubscribeForm />

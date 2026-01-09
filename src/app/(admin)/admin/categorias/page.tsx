@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from "next/navigation";
 
 interface Categoria {
-  _id: string;
+  id: number;
   nombre: string;
 }
 
@@ -13,7 +13,7 @@ export default function AdminCategorias() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [nuevaCategoria, setNuevaCategoria] = useState('');
   const [loading, setLoading] = useState(false);
-  const [editando, setEditando] = useState<string | null>(null);
+  const [editando, setEditando] = useState<number | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -58,10 +58,10 @@ export default function AdminCategorias() {
 
   const handleEdit = (categoria: Categoria) => {
     setNuevaCategoria(categoria.nombre);
-    setEditando(categoria._id);
+    setEditando(categoria.id);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (confirm('¿Eliminar esta categoría?')) {
       try {
         await fetch(`/api/categorias/${id}`, { method: 'DELETE' });
@@ -141,14 +141,14 @@ export default function AdminCategorias() {
               </div>
             ) : (
               categorias.map((categoria) => (
-                <div key={categoria._id} className="px-8 py-6 hover:bg-[#F8F8F5] transition-colors flex items-center justify-between">
+                <div key={categoria.id} className="px-8 py-6 hover:bg-[#F8F8F5] transition-colors flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-gradient-to-br from-[#6BAEC9] to-[#A8D7E6] rounded-xl flex items-center justify-center shadow-md">
                       <span className="text-xl font-bold text-white">{categoria.nombre.charAt(0).toUpperCase()}</span>
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-[#4A4A4A]">{categoria.nombre}</h3>
-                      <p className="text-sm text-[#6BAEC9]">ID: {categoria._id.slice(-8)}</p>
+                      <p className="text-sm text-[#6BAEC9]">ID: {categoria.id}</p>
                     </div>
                   </div>
                   
@@ -161,7 +161,7 @@ export default function AdminCategorias() {
                       ✏️
                     </button>
                     <button
-                      onClick={() => handleDelete(categoria._id)}
+                      onClick={() => handleDelete(categoria.id)}
                       className="p-3 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl hover:scale-105 transition-all shadow-md"
                       title="Eliminar"
                     >

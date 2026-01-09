@@ -6,12 +6,12 @@ import { addToCart } from "@/lib/cartService";
 import CartModal from "@/components/CartModal";
 
 interface CategoriaProducto {
-  _id: string;
+  id: number;
   nombre: string;
 }
 
 interface Variante {
-  _id: string;
+  id: number;
   color?: string;
   imagen?: string;
   tamaño?: string;
@@ -20,7 +20,7 @@ interface Variante {
 }
 
 interface Producto {
-  _id: string;
+  id: number;
   nombre: string;
   descripcion: string;
   descripcion_html?: string;
@@ -68,14 +68,17 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
   const handleAddToCart = async () => {
     await addToCart({
       ...producto,
+      id: Number(producto.id), 
       cantidad,
-      tamanoSeleccionado,
-      tiradorSeleccionado,
-      colorSeleccionado,
+      tamanoSeleccionado: tamanoSeleccionado ?? undefined,
+      tiradorSeleccionado: tiradorSeleccionado ?? undefined,
+      colorSeleccionado: colorSeleccionado ?? undefined,
       precioFinal,
-      imagen: imagenActiva || producto.imagenes?.[0] || "", // 👈 clave
+      imagen: imagenActiva || producto.imagenes?.[0] || "",
     });
-    setModalAbierto(true);
+    
+    // 👇 FALTABA ESTO: Abrir el modal y cerrar la función
+    setModalAbierto(true); 
   };
 
   return (
@@ -86,9 +89,9 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
           Inicio
         </Link>
         <span className="mx-1">/</span>
-        {producto.categoria && producto.categoria._id ? (
+        {producto.categoria && producto.categoria.id ? (
           <Link
-            href={`/categorias/${producto.categoria._id}`}
+            href={`/categorias/${producto.categoria.id}`}
             className="cursor-pointer hover:underline"
           >
             {producto.categoria.nombre}
@@ -177,7 +180,7 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
                 >
                   <option value="">Selecciona tamaño</option>
                   {tamaños.map((t) => (
-                    <option key={t._id} value={t.tamaño}>
+                    <option key={t.id} value={t.tamaño}>
                       {t.tamaño}
                     </option>
                   ))}
@@ -191,7 +194,7 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
                 <div className="grid grid-cols-2 gap-2">
                   {tiradores.map((t) => (
                     <button
-                      key={t._id}
+                      key={t.id}
                       type="button"
                       onClick={() => setTiradorSeleccionado(t.tirador || null)}
                       className={`border rounded px-3 py-2 text-sm ${
@@ -213,7 +216,7 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
                 <div className="flex flex-wrap gap-2">
                   {colores.map((c) => (
                     <button
-                      key={c._id}
+                      key={c.id}
                       type="button"
                       onClick={() => setColorSeleccionado(c.color || null)}
                       className={`border rounded-full h-8 px-3 text-xs flex items-center justify-center ${

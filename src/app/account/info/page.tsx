@@ -1,22 +1,28 @@
 "use client";
 
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useClienteAuth } from "@/context/ClienteAuthContext";
-import { useState, useEffect } from "react";
 import { fetchWithAuth } from "@/utils/fetchWithAuth";
 import toast from "react-hot-toast";
 import CambiarPassword from "@/components/CambiarPassword";
 import CambiarEmail from "@/components/CambiarEmail";
-import { jwtDecode } from "jwt-decode";
-import { useRouter, useSearchParams } from "next/navigation";
 
-export default function InfoPage() {
+// --- COMPONENTE INTERNO DEL FORMULARIO ---
+function InfoForm() {
   const { cliente, token, setCliente } = useClienteAuth();
-  const [formData, setFormData] = useState(cliente || {});
+  // Inicializamos con any para evitar problemas de tipado rápido
+  const [formData, setFormData] = useState<any>({});
   const [saving, setSaving] = useState(false);
+  
   const router = useRouter();
-  const params = useSearchParams();
-  const redirectAfterSave = params.get("redirect"); // si viene del checkout
+  const searchParams = useSearchParams();
 
+  // Obtenemos el redirect de la URL
+  const rawRedirect = searchParams.get("redirect");
+  const redirectTarget = rawRedirect ? decodeURIComponent(rawRedirect) : null;
+
+  // Cargar datos del cliente en el formulario
   useEffect(() => {
     if (cliente) {
       setFormData({
@@ -35,22 +41,20 @@ export default function InfoPage() {
     }
   }, [cliente]);
 
-  if (!cliente) return <p>Cargando datos del cliente...</p>;
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) return;
+    if (!token) {
+        toast.error("No hay sesión activa");
+        return;
+    }
     setSaving(true);
 
     try {
-      const decoded: any = jwtDecode(token);
-      console.log("decoded.id del token →", decoded.id);
-      console.log("cliente.id que se envía →", cliente.id);
-
+      // Enviamos el PUT
       const res = await fetchWithAuth(`/api/clientes/${cliente.id}`, token, {
         method: "PUT",
         body: JSON.stringify(formData),
@@ -62,25 +66,37 @@ export default function InfoPage() {
         return;
       }
 
+      // Actualizamos estado local
       setCliente(res.cliente);
       localStorage.setItem("cliente_datos", JSON.stringify(res.cliente));
-      toast.success("Información actualizada correctamente ✅");
+      toast.success("Datos guardados correctamente ✅");
 
-      // si viene del checkout, regresar automáticamente al flujo
-      if (redirectAfterSave) {
-        router.push(redirectAfterSave);
-      }
+      // LOGICA DE REDIRECCIÓN
+      if (redirectTarget) {
+        console.log("🚀 Redirigiendo a:", redirectTarget);
+        // Pequeño delay para UX
+        setTimeout(() => {
+            router.push(redirectTarget);
+            router.refresh(); 
+        }, 500);
+      } 
+
     } catch (error) {
-      toast.error("Error al guardar los cambios");
-      console.error("❌", error);
+      console.error(error);
+      toast.error("Error al guardar");
     } finally {
       setSaving(false);
     }
   };
 
+  if (!cliente) return <div className="p-4 text-center">Cargando datos...</div>;
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-bold mb-6">Información personal</h1>
+      <h1 className="text-2xl font-bold mb-6">
+        Información personal
+        {redirectTarget && <span className="block text-sm font-normal text-blue-600 mt-1">Paso 1 de 2: Confirma tus datos</span>}
+      </h1>
 
       <form onSubmit={handleSubmit} className="space-y-4 max-w-md mb-10">
         {[
@@ -94,16 +110,16 @@ export default function InfoPage() {
           { name: "codigoPostal", label: "Código Postal" },
           { name: "ciudad", label: "Ciudad" },
           { name: "provincia", label: "Provincia" },
-          { name: "pais", label: "País (por defecto España)" },
+          { name: "pais", label: "País" },
         ].map(({ name, label }) => (
           <div key={name}>
-            <label className="block text-sm font-medium mb-1">{label}</label>
+            <label className="block text-sm font-medium mb-1 text-gray-700">{label}</label>
             <input
               type="text"
               name={name}
-              value={(formData as any)[name] || ""}
+              value={formData[name] || ""}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md p-2"
+              className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
           </div>
         ))}
@@ -111,19 +127,173 @@ export default function InfoPage() {
         <button
           type="submit"
           disabled={saving}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+          className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 disabled:opacity-50 w-full font-semibold transition-colors"
         >
-          {saving ? "Guardando..." : "Guardar cambios"}
+          {saving ? "Guardando..." : (redirectTarget ? "Guardar y Continuar al Pago →" : "Guardar cambios")}
         </button>
       </form>
 
-      {/* Email y contraseña */}
-      <CambiarEmail />
-      <CambiarPassword />
+      <div className="border-t pt-8 space-y-8">
+        <CambiarEmail />
+        <CambiarPassword />
+      </div>
     </div>
   );
 }
 
+// --- COMPONENTE PRINCIPAL (WRAPPER) ---
+// Definimos la función primero y luego la exportamos para evitar errores de parseo
+const InfoPage = () => {
+  return (
+    <Suspense fallback={<div className="p-10 text-center">Cargando formulario...</div>}>
+      <InfoForm />
+    </Suspense>
+  );
+};
+
+export default InfoPage;
+
+
+// "use client";
+
+// import { useClienteAuth } from "@/context/ClienteAuthContext";
+// import { useState, useEffect, Suspense } from "react";
+// import { fetchWithAuth } from "@/utils/fetchWithAuth";
+// import toast from "react-hot-toast";
+// import CambiarPassword from "@/components/CambiarPassword";
+// import CambiarEmail from "@/components/CambiarEmail";
+// import { useRouter, useSearchParams } from "next/navigation";
+
+// // 👇 1. LÓGICA DEL FORMULARIO (Componente interno)
+// function InfoForm() {
+//   const { cliente, token, setCliente } = useClienteAuth();
+//   const [formData, setFormData] = useState<any>({});
+//   const [saving, setSaving] = useState(false);
+//   const router = useRouter();
+  
+//   // Leemos el parámetro ?redirect=... de forma segura dentro de Suspense
+//   const params = useSearchParams();
+//   const redirectAfterSave = params.get("redirect");
+
+//   useEffect(() => {
+//     if (cliente) {
+//       setFormData({
+//         nombre: cliente.nombre || "",
+//         apellidos: cliente.apellidos || "",
+//         empresa: cliente.empresa || "",
+//         direccion: cliente.direccion || "",
+//         direccionComplementaria: cliente.direccionComplementaria || "",
+//         codigoPostal: cliente.codigoPostal || cliente.codigoPostal || "",
+//         ciudad: cliente.ciudad || "",
+//         provincia: cliente.provincia || "",
+//         pais: cliente.pais || "España",
+//         nif: cliente.nif || "",
+//         telefono: cliente.telefono || "",
+//       });
+//     }
+//   }, [cliente]);
+
+//   if (!cliente) return <div className="text-gray-500">Cargando datos...</div>;
+
+//   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+//     setFormData({ ...formData, [e.target.name]: e.target.value });
+//   };
+
+//   const handleSubmit = async (e: React.FormEvent) => {
+//     e.preventDefault();
+//     if (!token) return;
+//     setSaving(true);
+
+//     try {
+//       // Enviamos el PUT a la API
+//       const res = await fetchWithAuth(`/api/clientes/${cliente.id}`, token, {
+//         method: "PUT",
+//         body: JSON.stringify(formData),
+//       });
+
+//       if (res.error) {
+//         toast.error(res.error);
+//         setSaving(false);
+//         return;
+//       }
+
+//       // Actualizamos el contexto y localStorage
+//       setCliente(res.cliente);
+//       localStorage.setItem("cliente_datos", JSON.stringify(res.cliente));
+//       toast.success("Información actualizada correctamente ✅");
+
+//       // 🔄 REDIRECCIÓN AUTOMÁTICA
+//       if (redirectAfterSave) {
+//         console.log("🔄 Redirigiendo al checkout en 1s...");
+//         setTimeout(() => {
+//             router.push(redirectAfterSave);
+//         }, 1000);
+//       }
+
+//     } catch (error) {
+//       toast.error("Error al guardar los cambios");
+//       console.error(error);
+//     } finally {
+//       setSaving(false);
+//     }
+//   };
+
+//   return (
+//     <div className="max-w-3xl mx-auto px-4 py-10">
+//       <h1 className="text-2xl font-bold mb-6">Información personal</h1>
+
+//       <form onSubmit={handleSubmit} className="space-y-4 max-w-md mb-10">
+//         {[
+//           { name: "nombre", label: "Nombre" },
+//           { name: "apellidos", label: "Apellidos" },
+//           { name: "empresa", label: "Empresa" },
+//           { name: "nif", label: "NIF" },
+//           { name: "telefono", label: "Teléfono" },
+//           { name: "direccion", label: "Dirección" },
+//           { name: "direccionComplementaria", label: "Dirección complementaria" },
+//           { name: "codigoPostal", label: "Código Postal" },
+//           { name: "ciudad", label: "Ciudad" },
+//           { name: "provincia", label: "Provincia" },
+//           { name: "pais", label: "País" },
+//         ].map(({ name, label }) => (
+//           <div key={name}>
+//             <label className="block text-sm font-medium mb-1 text-gray-700">{label}</label>
+//             <input
+//               type="text"
+//               name={name}
+//               value={formData[name] || ""}
+//               onChange={handleChange}
+//               className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+//             />
+//           </div>
+//         ))}
+
+//         <button
+//           type="submit"
+//           disabled={saving}
+//           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 w-full md:w-auto"
+//         >
+//           {saving ? "Guardando..." : "Guardar cambios"}
+//         </button>
+//       </form>
+
+//       <div className="border-t pt-8 space-y-8">
+//         <CambiarEmail />
+//         <CambiarPassword />
+//       </div>
+//     </div>
+//   );
+// }
+
+// // 👇 2. COMPONENTE PRINCIPAL QUE EXPORTAMOS
+// // ⚠️ IMPORTANTE: Esta función NO puede llevar la palabra 'async' delante
+// export default function InfoPage() {
+//   return (
+//     <Suspense fallback={<div className="p-10 text-center">Cargando formulario...</div>}>
+//       <InfoForm />
+//     </Suspense>
+//   );
+// }
 
 // "use client";
 

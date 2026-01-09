@@ -1,60 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
-import Pedido from "@/models/Pedido";
+import { prisma } from "@/lib/prisma";
 
-export async function GET(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> } // 👈 params es una Promise
-) {
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
-    await mongoose.connect(process.env.MONGODB_URI!);
+    const { id: idString } = await params;
+    const id = parseInt(idString);
 
-    // ✅ Desempaquetamos la promesa
-    const { id } = await context.params;
+    if (isNaN(id)) {
+        return NextResponse.json({ ok: false, error: "ID inválido" }, { status: 400 });
+    }
 
-    const pedido = await Pedido.findById(id);
+    const pedido = await prisma.pedido.findUnique({
+      where: { id },
+      include: {
+        productos: true,
+        cliente: true
+      }
+    });
+
     if (!pedido) {
-      return NextResponse.json(
-        { ok: false, error: "Pedido no encontrado" },
-        { status: 404 }
-      );
+      return NextResponse.json({ ok: false, error: "Pedido no encontrado" }, { status: 404 });
     }
 
     return NextResponse.json({ ok: true, pedido });
   } catch (error: any) {
-    console.error("❌ Error GET pedido:", error.message);
-    return NextResponse.json(
-      { ok: false, error: "Error de servidor" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: "Error de servidor" }, { status: 500 });
   }
 }
 
-export async function PUT(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> } // 👈 también aquí
-) {
+export async function PUT(req: NextRequest, { params }: RouteParams) {
   try {
-    await mongoose.connect(process.env.MONGODB_URI!);
-    const { id } = await context.params;
+    const { id: idString } = await params;
+    const id = parseInt(idString);
     const data = await req.json();
 
-    const pedido = await Pedido.findByIdAndUpdate(id, data, { new: true });
-
-    if (!pedido) {
-      return NextResponse.json(
-        { ok: false, error: "Pedido no encontrado" },
-        { status: 404 }
-      );
-    }
+    const pedido = await prisma.pedido.update({
+      where: { id },
+      data: {
+         estado: data.estado 
+      }
+    });
 
     return NextResponse.json({ ok: true, pedido });
   } catch (error: any) {
-    console.error("❌ Error PUT pedido:", error.message);
-    return NextResponse.json(
-      { ok: false, error: "Error de servidor" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: "Error de servidor" }, { status: 500 });
   }
 }
-

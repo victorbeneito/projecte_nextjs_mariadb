@@ -16,7 +16,7 @@ export default function ProductCard({ producto }: ProductCardProps) {
       : "/img/no-image.jpg";
 
   return (
-    <Link href={`/productos/${producto._id}`} className="block">
+    <Link href={`/productos/${producto.id}`} className="block">
       <div
         className="font-poppins bg-white rounded-lg shadow-sm p-4 flex flex-col items-center border border-gray-200
                    hover:shadow-lg hover:-translate-y-1 transition-all duration-300 w-full max-w-[360px] mx-auto

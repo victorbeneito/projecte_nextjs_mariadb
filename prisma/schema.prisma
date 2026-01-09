@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql" // MariaDB usa el driver de MySQL
+  url      = env("DATABASE_URL")
+}
+
+// ---------------- MODELOS PRINCIPALES ----------------
+
+model Marca {
+  id          Int        @id @default(autoincrement())
+  nombre      String     @unique // Importante para buscar por nombre
+  descripcion String?    @db.Text
+  logo_url    String?
+  productos   Producto[]
+  imagen    String?
+}
+
+model Categoria {
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
+  productos Producto[]
+  descripcion String?    @db.Text // @db.Text permite textos largos
+  imagen      String?
+}
+
+model Producto {
+  id               Int        @id @default(autoincrement())
+  nombre           String
+  descripcion      String?    @db.Text
+  descripcion_html String?    @db.Text // Coincide con tu 'descripcion_html'
+  precio           Float
+  stock            Int        @default(0)
+  destacado        Boolean    @default(false)
+  
+  // En MariaDB no existen arrays de strings. Usamos JSON para guardar ["img1.jpg", "img2.jpg"]
+  imagenes         Json?      
+  
+  // Relaciones
+  marcaId          Int?
+  marca            Marca?     @relation(fields: [marcaId], references: [id])
+  
+  categoriaId      Int?
+  categoria        Categoria? @relation(fields: [categoriaId], references: [id])
+  
+  variantes        Variante[]
+  
+  // Para búsquedas o referencias futuras
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+model Variante {
+  id           Int      @id @default(autoincrement())
+  color        String?
+  imagen       String?
+  tamano       String?  // Evita usar ñ en nombres de columna SQL si es posible
+  tirador      String?
+  precio_extra Float?   @default(0)
+  
+  productoId   Int
+  producto     Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+}
+
+// ---------------- USUARIOS Y CLIENTES ----------------
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  email     String   @unique
+  password  String
+  rol       String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Usuario {
+  id        Int        @id @default(autoincrement())
+  nombre    String?
+  email     String     @unique
+  password  String
+  rol       RolUsuario @default(CLIENTE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+enum RolUsuario {
+  CLIENTE
+  ADMIN
+}
+
+model Cliente {
+  id                      Int      @id @default(autoincrement())
+  nombre                  String
+  apellidos               String?
+  email                   String   @unique
+  password                String
+  telefono                String?
+  empresa                 String?
+  direccion               String?
+  direccionComplementaria String?
+  codigoPostal            String?
+  ciudad                  String?
+  provincia               String?
+  pais                    String?  @default("España")
+  nif                     String?
+  role                    String   @default("cliente")
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  
+  pedidos                 Pedido[]
+  
+  // Relaciones con Cupones
+  cuponesPropios          Cupon[]  @relation("CuponDueño")
+  cuponesUsados           Cupon[]  @relation("CuponesUsados")
+} 
+// 👆 ¡IMPORTANTE! Asegúrate de que esta llave de cierre esté aquí
+
+model Cupon {
+  id              Int       @id @default(autoincrement())
+  codigo          String    @unique
+  descripcion     String?
+  descuento       Float
+  fechaExpiracion DateTime
+  usado           Boolean   @default(false)
+  
+  // 1. Dueño del cupón (Opcional)
+  clienteId       Int?
+  cliente         Cliente?  @relation("CuponDueño", fields: [clienteId], references: [id])
+  
+  // 2. Historial de uso
+  clientesUsados  Cliente[] @relation("CuponesUsados")
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+model Pedido {
+  id             Int              @id @default(autoincrement())
+  numeroPedido   String           @unique // Ej: PED-2025-0001
+  
+  clienteId      Int
+  cliente        Cliente          @relation(fields: [clienteId], references: [id])
+  
+  // Snapshot de datos de envío (para que no cambien si el cliente se muda)
+  nombre         String
+  email          String
+  telefono       String?
+  direccion      String?
+  ciudad         String?
+  cp             String?
+  
+  envioMetodo    String
+  envioCoste     Float            @default(0)
+  
+  pagoMetodo     String
+  pagoRecargo    Float            @default(0)
+  estadoPago     EstadoPago       @default(PENDIENTE)
+  
+  subtotal       Float
+  descuento      Float            @default(0)
+  totalFinal     Float
+  
+  estado         EstadoPedido     @default(PENDIENTE)
+  
+  cuponCodigo    String?
+  cuponDescuento Float?
+  
+  fechaPedido    DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  
+  productos      PedidoProducto[]
+}
+
+model PedidoProducto {
+  id              Int     @id @default(autoincrement())
+  pedidoId        Int
+  pedido          Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  
+  // Guardamos el ID original como referencia, o el nuevo ID de producto si existe
+  productoIdRef   Int?    
+  nombre          String
+  cantidad        Int
+  precioUnitario  Float
+  subtotal        Float
+}
+
+enum EstadoPago {
+  PENDIENTE
+  PAGADO
+  FALLIDO
+}
+
+enum EstadoPedido {
+  PENDIENTE
+  PROCESANDO
+  ENVIADO
+  ENTREGADO
+  CANCELADO
+}

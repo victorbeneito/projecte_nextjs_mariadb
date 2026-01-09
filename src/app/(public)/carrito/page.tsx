@@ -32,16 +32,16 @@ export default function CarritoPage() {
     setTotal(nuevoTotal);
   }, [carrito]);
 
-  const updateQuantity = (id: string, nuevaCantidad: number) => {
+  const updateQuantity = (id: number, nuevaCantidad: number) => {
     if (nuevaCantidad < 1) return;
     const updated = carrito.map((item) =>
-      item._id === id ? { ...item, cantidad: nuevaCantidad } : item
+      item.id === id ? { ...item, cantidad: nuevaCantidad } : item
     );
     setCart(updated);
     setCarrito(updated);
   };
 
-  const handleRemove = (id: string) => {
+  const handleRemove = (id: number) => {
     removeFromCart(id);
     setCarrito(getCart());
   };
@@ -105,7 +105,7 @@ export default function CarritoPage() {
       {/* Lista de productos */}
       <div className="bg-white shadow rounded-lg overflow-hidden divide-y">
         {carrito.map((item) => (
-          <div key={item._id} className="p-4 flex items-center gap-4">
+          <div key={item.id} className="p-4 flex items-center gap-4">
             <img
               src={item.imagen || "/no-image.jpg"}
               alt={item.nombre}
@@ -133,7 +133,7 @@ export default function CarritoPage() {
             {/* Controles de cantidad */}
             <div className="flex items-center gap-3">
               <button
-                onClick={() => updateQuantity(item._id, item.cantidad - 1)}
+                onClick={() => updateQuantity(item.id, item.cantidad - 1)}
                 className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded"
                 disabled={item.cantidad <= 1}
               >
@@ -145,14 +145,14 @@ export default function CarritoPage() {
               </span>
 
               <button
-                onClick={() => updateQuantity(item._id, item.cantidad + 1)}
+                onClick={() => updateQuantity(item.id, item.cantidad + 1)}
                 className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded"
               >
                 +
               </button>
 
               <button
-                onClick={() => handleRemove(item._id)}
+                onClick={() => handleRemove(item.id)}
                 className="text-red-500 hover:text-red-700 text-sm font-medium ml-2"
               >
                 Eliminar

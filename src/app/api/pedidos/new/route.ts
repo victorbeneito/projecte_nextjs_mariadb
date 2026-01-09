@@ -1,84 +1,87 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
-import dbConnect from "@/lib/mongoose";
-import Pedido from "@/models/Pedido";
-import Cliente from "@/models/Cliente";
+import { prisma } from "@/lib/prisma";
 
-/* *********************************************
-   ✅  CREAR PEDIDO (POST)  /api/pedidos/new
-********************************************* */
 export async function POST(req: Request) {
   try {
-    await dbConnect();
-
     const body = await req.json();
-    console.log("📦 Datos recibidos:", body); // ← verás esto en la consola del servidor
+    console.log("📦 [MariaDB] Creando pedido (ruta /new).");
 
-   // Si tu contexto añade el token, podrías decodificar JWT para obtener id y email.
-// Pero como ya los tienes en useClienteAuth, envíalos desde el front (ahora lo haremos abajo).
+    let clienteId: number | null = null;
+    const datosCliente = body.cliente || {};
 
-// 🔹 Leer cliente autenticado que viene del contexto
-const clienteData = body.cliente || {}; // Si el front lo enviara en el body, lo usamos.
+    if (datosCliente.email) {
+      const c = await prisma.cliente.findUnique({ where: { email: datosCliente.email } });
+      if (c) clienteId = c.id;
+    }
+    if (!clienteId && body.clienteId) {
+      const parsed = parseInt(body.clienteId);
+      if (!isNaN(parsed)) clienteId = parsed;
+    }
 
-const clienteAInsertar = {
-  nombre: clienteData.nombre ?? "Cliente",
-  email: clienteData.email ?? "sinemail@local",
-  telefono: clienteData.telefono || "",
-  direccion: clienteData.direccion || "",
-  ciudad: clienteData.ciudad || "",
-  cp: clienteData.cp || clienteData.codigoPostal || "",
-};
+    if (!clienteId) {
+      return NextResponse.json({ ok: false, error: "Cliente no identificado" }, { status: 400 });
+    }
 
-// Si tu contexto añade el token, podrías decodificar JWT para obtener id y email.
-// Pero como ya los tienes en useClienteAuth, envíalos desde el front (ahora lo haremos abajo).
+    // --- CORRECCIÓN OBJETO vs STRING ---
+    let envioNombre = "Estándar";
+    let envioCoste = 0;
+    if (body.envioMetodo && typeof body.envioMetodo === 'object') {
+        envioNombre = body.envioMetodo.metodo || "Estándar";
+        envioCoste = parseFloat(body.envioMetodo.coste || 0);
+    } else {
+        envioNombre = String(body.envioMetodo || "Estándar");
+        envioCoste = parseFloat(body.envioCoste || 0);
+    }
+    
+    let pagoNombre = "Tarjeta";
+    if (body.pagoMetodo && typeof body.pagoMetodo === 'object') {
+        pagoNombre = body.pagoMetodo.metodo || "Tarjeta";
+    } else {
+        pagoNombre = String(body.pagoMetodo || "Tarjeta");
+    }
+    // -----------------------------------
 
-const clienteId =
-  clienteData._id ||
-  body.clienteId ||
-  null; // enviamos desde front el id del cliente
+    const productosData = (body.carrito || body.productos || []).map((p: any) => ({
+      nombre: p.nombre,
+      cantidad: p.cantidad,
+      precioUnitario: parseFloat(p.precioFinal ?? p.precio),
+      subtotal: (p.precioFinal ?? p.precio) * p.cantidad,
+    }));
 
-const productosNormalizados = (body.carrito || []).map((p: any) => ({
-  productoId: p._id,
-  nombre: p.nombre,
-  cantidad: p.cantidad,
-  precioUnitario: p.precioFinal ?? p.precio,
-  subtotal: (p.precioFinal ?? p.precio) * p.cantidad,
-}));
+    const nuevoPedido = await prisma.pedido.create({
+      data: {
+        numeroPedido: `PED-${Date.now()}`,
+        clienteId: clienteId,
+        nombre: datosCliente.nombre || "Cliente",
+        email: datosCliente.email,
+        telefono: datosCliente.telefono,
+        direccion: datosCliente.direccion,
+        ciudad: datosCliente.ciudad,
+        cp: datosCliente.cp || datosCliente.codigoPostal,
+        
+        envioMetodo: envioNombre,
+        envioCoste: envioCoste,
+        
+        pagoMetodo: pagoNombre,
+        
+        subtotal: parseFloat(body.subtotal || 0),
+        descuento: parseFloat(body.descuento || 0),
+        totalFinal: parseFloat(body.totalFinal),
+        estado: body.estado || "PENDIENTE",
+        productos: {
+          create: productosData
+        }
+      }
+    });
 
-const nuevoPedido = new Pedido({
-  clienteId,
-  cliente: clienteAInsertar,
-  envio: body.metodoEnvio || body.envio,
-  pago: body.metodoPago || body.pago,
-  productos: productosNormalizados,
-  cupon: {
-    codigo: body.cuponCodigo || null,
-    descuento: body.descuento || 0,
-  },
-  subtotal: body.subtotal || 0,
-  descuento: body.descuento || 0,
-  totalFinal: body.totalFinal,
-  estado: body.estado || "pendiente",
-  fechaPedido: new Date(),
-});
-
-
-    await nuevoPedido.save();
-
-    console.log("✅ Pedido guardado:", nuevoPedido._id);
     return NextResponse.json({
       ok: true,
       message: "Pedido creado correctamente ✅",
       pedido: nuevoPedido,
     });
+
   } catch (error: any) {
-    console.error("❌ Error al crear pedido:", error);
-    return NextResponse.json(
-      {
-        error: "Error al crear pedido",
-        detalle: error.message,
-      },
-      { status: 500 }
-    );
+    console.error("❌ Error /api/pedidos/new:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

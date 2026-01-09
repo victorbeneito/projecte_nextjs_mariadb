@@ -247,7 +247,7 @@ export default function AdminProductos() {
   : [],
     });
     setEditando(true);
-    setEditId(producto._id);
+    setEditId(producto.id);
   };
 
   const handleDelete = async (id: string) => {
@@ -408,7 +408,7 @@ export default function AdminProductos() {
               >
                 <option value="">Selecciona marca</option>
                 {marcas.map((marca: any) => (
-                  <option key={marca._id} value={marca.nombre}>
+                  <option key={marca.id} value={marca.nombre}>
                     {marca.nombre}
                   </option>
                 ))}
@@ -433,7 +433,7 @@ export default function AdminProductos() {
               >
                 <option value="">Selecciona categoría</option>
                 {categorias.map((cat: any) => (
-                  <option key={cat._id} value={cat.nombre}>
+                  <option key={cat.id} value={cat.nombre}>
                     {cat.nombre}
                   </option>
                 ))}
@@ -635,7 +635,7 @@ export default function AdminProductos() {
               <tbody>
                 {productos.map((producto: any) => (
                   <tr
-                    key={producto._id}
+                    key={producto.id}
                     className="border-b border-gray-200 hover:bg-[#6BAEC9]/5 transition-all duración-200"
                   >
                     <td className="py-6 px-4 font-semibold text-lg">
@@ -670,7 +670,7 @@ export default function AdminProductos() {
                           ✏️ Editar
                         </button>
                         <button
-                          onClick={() => handleDelete(producto._id)}
+                          onClick={() => handleDelete(producto.id)}
                           className="px-6 py-2 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all duración-300"
                         >
                           🗑️ Eliminar

@@ -36,12 +36,13 @@ export default function AuthPage() {
       let data;
 
       if (esRegistro) {
-        // 🟢 REGISTRO
-        res = await fetch('/api/clientes', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
+        // 🟢 REGISTRO (CORREGIDO)
+        // Cambiamos la URL a la ruta de registro y el método a POST
+        res = await fetch('/api/auth/register', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
         data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Error en registro');
       } else {

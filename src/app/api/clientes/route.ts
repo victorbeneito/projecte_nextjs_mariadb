@@ -1,256 +1,224 @@
-// src/app/api/clientes/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
+import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import Cliente from "@/models/Cliente"; // 👈 usa el modelo completo
 
-async function hashPassword(password: string): Promise<string> {
-  return await bcrypt.hash(password, 10);
-}
+export const dynamic = "force-dynamic";
 
-// Middleware para verificar JWT (acepta cliente o admin)
-async function verificarToken(req: NextRequest) {
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) {
-    return NextResponse.json(
-      { ok: false, error: "Token requerido" },
-      { status: 401 }
-    );
-  }
-
-  const token = auth.replace("Bearer ", "");
-
-  // Intentamos validar con las dos claves posibles
-  try {
-    jwt.verify(token, process.env.SECRETO_JWT_CLIENTE!);
-    return null; // ✅ token de cliente válido
-  } catch {
-    try {
-      jwt.verify(token, process.env.SECRETO_JWT_ADMIN!);
-      return null; // ✅ token de admin válido
-    } catch {
-      return NextResponse.json(
-        { ok: false, error: "Token inválido" },
-        { status: 401 }
-      );
-    }
-  }
-}
-
-
-// GET - Listar clientes o buscar por nombre/email/id
 export async function GET(req: NextRequest) {
   try {
-    await mongoose.connect(process.env.MONGODB_URI!);
-
-    const tokenError = await verificarToken(req);
-    if (tokenError) return tokenError;
-
+    // 1. Obtener parámetros de la URL
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search");
-    const emailParam = searchParams.get("email");
-    const idParam = searchParams.get("id");
+    const clienteIdParam = searchParams.get("clienteId");
+    
+    // 2. Obtener y Validar Token
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader && authHeader.split(" ")[1];
 
-    let clientes: any[] = [];
+    if (!token) {
+      return NextResponse.json({ error: "Token requerido" }, { status: 401 });
+    }
 
-    if (idParam) {
-      const cliente = await Cliente.findById(idParam).select("-password");
-      if (!cliente) {
-        return NextResponse.json({
-          ok: false,
-          error: "Cliente no encontrado",
-        });
+    let esAdmin = false;
+    let usuarioId = null;
+
+    // A) Verificamos si es Admin
+    try {
+      if (process.env.SECRETO_JWT_ADMIN) {
+        const decodedAdmin: any = jwt.verify(token, process.env.SECRETO_JWT_ADMIN);
+        if (decodedAdmin.rol === "ADMIN" || decodedAdmin.role === "admin") esAdmin = true;
       }
-      clientes = [cliente];
-    } else if (emailParam) {
-      const cliente = await Cliente.findOne({ email: emailParam }).select(
-        "-password"
-      );
-      if (!cliente) {
-        return NextResponse.json({
-          ok: false,
-          error: "Cliente no encontrado",
-        });
+    } catch (e) {}
+
+    // B) Verificamos si es Cliente (si no es admin)
+    if (!esAdmin) {
+      try {
+        const decodedCliente: any = jwt.verify(token, process.env.SECRETO_JWT_CLIENTE!);
+        usuarioId = decodedCliente.id;
+      } catch (e) {
+        return NextResponse.json({ error: "Token inválido" }, { status: 403 });
       }
-      clientes = [cliente];
-    } else if (search) {
-      const regex = new RegExp(search, "i");
-      clientes = await Cliente.find({
-        $or: [{ nombre: regex }, { apellidos: regex }, { email: regex }],
-      })
-        .select("-password")
-        .sort({ createdAt: -1 });
+    }
+
+    // 3. Construir el filtro
+    let whereClause: any = {};
+
+    if (clienteIdParam) {
+      const idSolicitado = parseInt(clienteIdParam);
+
+      // Seguridad: Un cliente solo puede ver SUS pedidos
+      if (!esAdmin && String(usuarioId) !== String(idSolicitado)) {
+        return NextResponse.json({ error: "No puedes ver pedidos de otro usuario" }, { status: 403 });
+      }
+
+      whereClause = { clienteId: idSolicitado };
+    
     } else {
-      clientes = await Cliente.find().select("-password").sort({ createdAt: -1 });
+      // Si no piden ID específico, es el panel de admin pidiendo todos
+      if (!esAdmin) {
+        return NextResponse.json({ error: "Solo admin puede ver todos los pedidos" }, { status: 403 });
+      }
     }
 
-    return NextResponse.json({ ok: true, clientes });
-  } catch (error: any) {
-    console.error("Error al obtener clientes:", error);
-    return NextResponse.json(
-      { ok: false, error: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-// POST - Crear cliente básico (sin auth)
-export async function POST(req: NextRequest) {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI!);
-    const data = await req.json();
-
-    const cliente = new Cliente(data);
-    await cliente.save();
-
-    const token = jwt.sign(
-      { id: cliente._id, email: cliente.email, role: cliente.role || "cliente" },
-      process.env.SECRETO_JWT_CLIENTE!,
-      { expiresIn: "24h" }
-    );
-
-    return NextResponse.json(
-      {
-        ok: true,
+    // 4. Buscar en Prisma
+    const pedidos = await prisma.pedido.findMany({
+      where: whereClause,
+      // 👇 CAMBIO CLAVE: Ordenamos por ID para evitar errores con fechas
+      orderBy: { id: "desc" }, 
+      include: {
+        productos: true,
         cliente: {
-          id: cliente._id,
-          nombre: cliente.nombre,
-          apellidos: cliente.apellidos,
-          email: cliente.email,
-          telefono: cliente.telefono,
-          direccion: cliente.direccion || "",
-          ciudad: cliente.ciudad || "",
-          cp: cliente.codigoPostal || "",
-        },
-        token,
-      },
-      { status: 201 }
-    );
-  } catch (error: any) {
-    if (error.code === 11000) {
-      return NextResponse.json(
-        { ok: false, error: "Email ya registrado" },
-        { status: 400 }
-      );
-    }
-    return NextResponse.json(
-      { ok: false, error: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-// PUT - Registro completo con doble contraseña
-export async function PUT(req: NextRequest) {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI!);
-    const { nombre, apellidos, email, password, password2, telefono } =
-      await req.json();
-
-    if (password !== password2) {
-      return NextResponse.json(
-        { ok: false, error: "Las contraseñas no coinciden" },
-        { status: 400 }
-      );
-    }
-
-    const clienteExistente = await Cliente.findOne({ email });
-    if (clienteExistente) {
-      return NextResponse.json(
-        { ok: false, error: "Email ya registrado" },
-        { status: 400 }
-      );
-    }
-
-    const cliente = new Cliente({
-  nombre,
-  apellidos,
-  email,
-  password,
-  telefono,
-});
-    await cliente.save();
-
-    const token = jwt.sign(
-      { id: cliente._id, email: cliente.email, role: "cliente" },
-      process.env.SECRETO_JWT_CLIENTE!,
-      { expiresIn: "24h" }
-    );
-
-    return NextResponse.json(
-      {
-        ok: true,
-        cliente: {
-          id: cliente._id,
-          nombre: cliente.nombre,
-          apellidos: cliente.apellidos,
-          email: cliente.email,
-          telefono: cliente.telefono,
-          direccion: cliente.direccion || "",
-          ciudad: cliente.ciudad || "",
-          cp: cliente.codigoPostal || "",
-        },
-        token,
-      },
-      { status: 201 }
-    );
-  } catch (error: any) {
-    return NextResponse.json(
-      { ok: false, error: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-// PATCH - Login
-export async function PATCH(req: NextRequest) {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI!);
-    const { email, password } = await req.json();
-
-    console.log("🧠 Email recibido:", email);
-console.log("🧠 Password recibido:", password);
-
-    const cliente = await Cliente.findOne({ email });
-    console.log("🧠 Cliente encontrado?", !!cliente);
-
-if (cliente) {
-  const esCoincidente = await bcrypt.compare(password, cliente.password);
-  console.log("🔍 Coinciden contraseñas?", esCoincidente);
-}
-
-    if (!cliente || !(await bcrypt.compare(password, cliente.password))) {
-      return NextResponse.json(
-        { ok: false, error: "Credenciales inválidas" },
-        { status: 400 }
-      );
-    }
-
-    const token = jwt.sign(
-      { id: cliente._id, email: cliente.email, role: cliente.role },
-      process.env.SECRETO_JWT_CLIENTE!,
-      { expiresIn: "24h" }
-    );
-
-    return NextResponse.json({
-      ok: true,
-      cliente: {
-        id: cliente._id,
-        nombre: cliente.nombre,
-        apellidos: cliente.apellidos,
-        email: cliente.email,
-        telefono: cliente.telefono,
-        direccion: cliente.direccion || "",
-        ciudad: cliente.ciudad || "",
-        cp: cliente.codigoPostal || "",
-      },
-      token,
+            select: { nombre: true, email: true }
+        }
+      }
     });
+
+    return NextResponse.json({ pedidos });
+
   } catch (error: any) {
-    return NextResponse.json(
-      { ok: false, error: error.message },
-      { status: 500 }
-    );
+    console.error("❌ Error API Pedidos:", error.message);
+    return NextResponse.json({ error: "Error al obtener pedidos" }, { status: 500 });
   }
 }
+
+// import { NextRequest, NextResponse } from "next/server";
+// import { prisma } from "@/lib/prisma";
+// import jwt from "jsonwebtoken";
+// import bcrypt from "bcryptjs";
+
+// // GET: Buscar Clientes
+// export async function GET(req: NextRequest) {
+//   try {
+//     // Aquí podrías validar token de admin si quisieras
+
+//     const { searchParams } = new URL(req.url);
+//     const search = searchParams.get("search");
+//     const emailParam = searchParams.get("email");
+//     const idParam = searchParams.get("id");
+
+//     let whereClause: any = {};
+
+//     if (idParam) {
+//       whereClause.id = parseInt(idParam);
+//     } else if (emailParam) {
+//       whereClause.email = emailParam;
+//     } else if (search) {
+//       whereClause = {
+//         OR: [
+//           { nombre: { contains: search } }, // En Postgres añadir: mode: 'insensitive'
+//           { apellidos: { contains: search } },
+//           { email: { contains: search } }
+//         ]
+//       };
+//     }
+
+//     const clientes = await prisma.cliente.findMany({
+//       where: whereClause,
+//       orderBy: { createdAt: 'desc' }
+//     });
+
+//     // Quitamos passwords de la lista
+//     const clientesSafe = clientes.map(({ password, ...resto }) => resto);
+
+//     return NextResponse.json({ ok: true, clientes: clientesSafe });
+//   } catch (error: any) {
+//     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+//   }
+// }
+
+// // POST: Crear Cliente (Registro Simple)
+// export async function POST(req: NextRequest) {
+//   try {
+//     const data = await req.json();
+
+//     // Hashear password
+//     const hashedPassword = await bcrypt.hash(data.password, 10);
+
+//     const cliente = await prisma.cliente.create({
+//       data: {
+//         ...data,
+//         password: hashedPassword,
+//         role: "cliente"
+//       }
+//     });
+
+//     const token = jwt.sign(
+//       { id: cliente.id, email: cliente.email, role: cliente.role },
+//       process.env.SECRETO_JWT_CLIENTE!,
+//       { expiresIn: "24h" }
+//     );
+
+//     const { password: _, ...clienteSafe } = cliente;
+
+//     return NextResponse.json({ ok: true, cliente: clienteSafe, token }, { status: 201 });
+//   } catch (error: any) {
+//     // Código de error P2002 es "Unique constraint failed" (Email duplicado)
+//     if (error.code === 'P2002') {
+//       return NextResponse.json({ ok: false, error: "Email ya registrado" }, { status: 400 });
+//     }
+//     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+//   }
+// }
+
+// // PUT: Registro completo (Doble password)
+// export async function PUT(req: NextRequest) {
+//   try {
+//     const { nombre, apellidos, email, password, password2, telefono } = await req.json();
+
+//     if (password !== password2) {
+//       return NextResponse.json({ ok: false, error: "Las contraseñas no coinciden" }, { status: 400 });
+//     }
+
+//     const existe = await prisma.cliente.findUnique({ where: { email } });
+//     if (existe) return NextResponse.json({ ok: false, error: "Email ya registrado" }, { status: 400 });
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     const cliente = await prisma.cliente.create({
+//       data: {
+//         nombre,
+//         apellidos,
+//         email,
+//         password: hashedPassword,
+//         telefono,
+//         role: "cliente"
+//       }
+//     });
+
+//     const token = jwt.sign(
+//       { id: cliente.id, email: cliente.email, role: "cliente" },
+//       process.env.SECRETO_JWT_CLIENTE!,
+//       { expiresIn: "24h" }
+//     );
+
+//     const { password: _, ...clienteSafe } = cliente;
+
+//     return NextResponse.json({ ok: true, cliente: clienteSafe, token }, { status: 201 });
+//   } catch (error: any) {
+//     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+//   }
+// }
+
+// // PATCH: Login
+// export async function PATCH(req: NextRequest) {
+//   try {
+//     const { email, password } = await req.json();
+
+//     const cliente = await prisma.cliente.findUnique({ where: { email } });
+
+//     if (!cliente || !(await bcrypt.compare(password, cliente.password))) {
+//       return NextResponse.json({ ok: false, error: "Credenciales inválidas" }, { status: 400 });
+//     }
+
+//     const token = jwt.sign(
+//       { id: cliente.id, email: cliente.email, role: cliente.role },
+//       process.env.SECRETO_JWT_CLIENTE!,
+//       { expiresIn: "24h" }
+//     );
+
+//     const { password: _, ...clienteSafe } = cliente;
+
+//     return NextResponse.json({ ok: true, cliente: clienteSafe, token });
+//   } catch (error: any) {
+//     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+//   }
+// }

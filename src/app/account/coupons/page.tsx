@@ -6,7 +6,7 @@ import { fetchWithAuth } from "@/utils/fetchWithAuth";
 import toast from "react-hot-toast";
 
 interface Coupon {
-  _id: string;
+  id: string;
   codigo: string;
   descripcion: string;
   descuento: number;
@@ -55,7 +55,7 @@ export default function CouponsPage() {
 
             return (
               <div
-                key={c._id}
+                key={c.id}
                 className={`border p-4 rounded-md shadow-sm ${color}`}
               >
                 <h2 className="text-lg font-semibold">{c.codigo}</h2>

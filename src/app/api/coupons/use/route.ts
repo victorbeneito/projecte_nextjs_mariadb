@@ -1,21 +1,36 @@
-// api/coupons/use/route.ts
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongoose";
-import Cupon from "@/models/Cupon";
+import { prisma } from "@/lib/prisma";
 
 export async function PATCH(req: Request) {
   try {
-    await dbConnect();
     const { codigo } = await req.json();
-    const cupon = await Cupon.findOneAndUpdate(
-      { codigo: codigo.toUpperCase() },
-      { usado: true },
-      { new: true }
-    );
-    if (!cupon) return NextResponse.json({ error: "Cupón no encontrado" }, { status: 404 });
+
+    if (!codigo) {
+      return NextResponse.json({ error: "Código es requerido" }, { status: 400 });
+    }
+
+    // Actualizar en MariaDB
+    // Prisma lanza un error si el registro no existe en un .update(), 
+    // por lo que usamos try/catch para manejar el 404.
+    const cupon = await prisma.cupon.update({
+      where: { 
+        codigo: codigo.toUpperCase() 
+      },
+      data: { 
+        usado: true 
+      }
+    });
+
     return NextResponse.json({ message: "Cupón marcado como usado", cupon });
-  } catch (error) {
+
+  } catch (error: any) {
     console.error("❌ Error al marcar cupón usado:", error);
+
+    // Código de error P2025 en Prisma significa "Record to update not found"
+    if (error.code === 'P2025') {
+        return NextResponse.json({ error: "Cupón no encontrado" }, { status: 404 });
+    }
+
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }

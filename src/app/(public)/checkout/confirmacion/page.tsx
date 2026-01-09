@@ -166,7 +166,7 @@ export default function ConfirmacionPage() {
             <div className="divide-y divide-gray-200">
               {carrito.map((item: CartItem) => (
                 <div
-                  key={item._id}
+                  key={item.id}
                   className="py-3 flex justify-between items-center"
                 >
                   <div>

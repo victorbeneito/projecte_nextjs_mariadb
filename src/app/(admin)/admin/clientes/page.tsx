@@ -4,11 +4,10 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-
 interface Cliente {
-  _id: string;
+  id: number;
   nombre: string;
-  apellidos: string;
+  apellidos: string; // ✅ Correcto
   email: string;
   telefono: string;
 }
@@ -19,7 +18,7 @@ export default function AdminClientes() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // 🔹 Cargar lista de clientes (con o sin búsqueda)
+  // 🔹 Cargar lista de clientes
   const fetchClientes = async (term: string = '') => {
     try {
       setLoading(true);
@@ -30,9 +29,9 @@ export default function AdminClientes() {
 
       const res = await fetch(url, {
         headers: {
-  Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}`,
-},
-
+            // ✅ UNIFICADO: Usamos adminToken
+            Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}`,
+        },
       });
 
       const data = await res.json();
@@ -60,17 +59,20 @@ export default function AdminClientes() {
   };
 
   // 🔹 Eliminar cliente
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este cliente?')) return;
+  const handleDelete = async (id: number) => {
+    if (!confirm('¿Eliminar este cliente? Esta acción borrará también sus pedidos.')) return;
+    
     try {
       const res = await fetch(`/api/clientes/${id}`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          // ✅ CORREGIDO: Antes ponía 'token', ahora 'adminToken' para coincidir
+          Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}`,
         },
       });
+      
       if (res.ok) {
-        fetchClientes(searchTerm);
+        fetchClientes(searchTerm); // Recargar lista
       } else {
         alert('⚠️ Error al eliminar cliente');
       }
@@ -105,7 +107,7 @@ export default function AdminClientes() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar cliente por nombre o email..."
+            placeholder="Buscar por nombre, apellidos o email..."
             className="flex-1 min-w-[250px] p-4 border border-gray-300 rounded-xl focus:ring-4 focus:ring-[#A8D7E6]"
           />
           <button
@@ -126,7 +128,7 @@ export default function AdminClientes() {
               <button
                 onClick={() => {
                   setSearchTerm('');
-                  fetchClientes(); // Restablecer lista completa
+                  fetchClientes(); 
                 }}
                 className="text-sm px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition"
               >
@@ -163,13 +165,14 @@ export default function AdminClientes() {
                 <tbody>
                   {clientes.map((cliente) => (
                     <tr
-                      key={cliente._id}
+                      key={cliente.id}
                       className="border-t hover:bg-gray-50 cursor-pointer"
                       onClick={() =>
-                        router.push(`/admin/clientes/${cliente._id}`)
+                        router.push(`/admin/clientes/${cliente.id}`)
                       }
                     >
                       <td className="px-8 py-6 font-medium text-gray-900">
+                        {/* ✅ Aquí mostramos nombre y apellidos */}
                         {cliente.nombre} {cliente.apellidos || ''}
                       </td>
                       <td className="px-8 py-6 text-gray-600">
@@ -182,7 +185,7 @@ export default function AdminClientes() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/admin/clientes/${cliente._id}`);
+                            router.push(`/admin/clientes/${cliente.id}`);
                           }}
                           className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                         >
@@ -191,7 +194,7 @@ export default function AdminClientes() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDelete(cliente._id);
+                            handleDelete(cliente.id);
                           }}
                           className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
                         >

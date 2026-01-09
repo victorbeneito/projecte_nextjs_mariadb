@@ -4,8 +4,7 @@ import React from "react";
 import ProductCard from "./ProductCard";
 
 type Producto = {
-  _id?: string;
-  id?: string;
+  id: number;
   destacado?: boolean;
   // más campos si quieres
 };
@@ -47,7 +46,7 @@ export default function ProductGrid({
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {productosAmostrar.map((producto) => (
           <ProductCard
-            key={producto._id || producto.id}
+            key={producto.id || producto.id}
             producto={producto as any}
           />
         ))}

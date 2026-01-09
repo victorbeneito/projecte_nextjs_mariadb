@@ -1,28 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
+import { prisma } from "@/lib/prisma"; // Asegúrate de tener este archivo
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import Usuario from "@/models/Usuario"; // 👈 cambia aquí
 
 export async function POST(req: NextRequest) {
   try {
-    await mongoose.connect(process.env.MONGODB_URI!);
-
     const { email, password } = await req.json();
 
-    // 🔍 Buscar solo usuarios con rol admin
-    const admin = await Usuario.findOne({
-      email: email.toLowerCase(),
-      rol: "admin",
+    // 1. Buscar usuario por email
+    const admin = await prisma.usuario.findUnique({
+      where: {
+        email: email.toLowerCase(),
+      },
     });
 
-    if (!admin) {
+    // 2. Comprobar si existe y si es admin
+    // Nota: En tu schema.prisma definimos el enum RolUsuario { ADMIN, CLIENTE }
+    // Prisma devuelve el rol como string o enum, asegúrate de comparar bien.
+    if (!admin || admin.rol !== "ADMIN") {
       return NextResponse.json(
-        { ok: false, error: "Administrador no encontrado" },
+        { ok: false, error: "Administrador no encontrado o sin permisos" },
         { status: 401 }
       );
     }
 
+    // 3. Verificar contraseña
     const esValido = await bcrypt.compare(password, admin.password);
     if (!esValido) {
       return NextResponse.json(
@@ -31,17 +33,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 🪪 Crear token de administrador
+    // 4. Crear Token (Usamos admin.id que ahora es un número, no un string largo)
     const token = jwt.sign(
-      { id: admin._id, email: admin.email, rol: "admin" },
+      { id: admin.id, email: admin.email, rol: admin.rol },
       process.env.SECRETO_JWT_ADMIN!,
       { expiresIn: "7d" }
     );
 
-    const adminSinPassword = admin.toObject();
-    delete adminSinPassword.password;
+    // 5. Devolver datos (Excluyendo contraseña)
+    // Usamos destructuring para separar password del resto
+    const { password: _, ...adminSinPassword } = admin;
 
     return NextResponse.json({ ok: true, token, admin: adminSinPassword });
+
   } catch (error: any) {
     console.error("❌ Error en admin-login:", error.message);
     return NextResponse.json(

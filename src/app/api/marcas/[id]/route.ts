@@ -1,30 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
+import { prisma } from "@/lib/prisma";
 
-const marcaSchema = new mongoose.Schema({
-  nombre: { type: String, required: true },
-  descripcion: String,
-  logo_url: String
-});
-
-const getModel = () => mongoose.models.Marca || mongoose.model('Marca', marcaSchema);
-
-// PUT: Editar marca por ID
-export async function PUT(
-  req: NextRequest, 
-  { params }: { params: Promise<{ id: string }> } // ← CORRECCIÓN NEXT.JS 15
-) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params; // ← CORRECCIÓN: Await params
-    if (mongoose.connection.readyState === 0) await mongoose.connect(process.env.MONGODB_URI!);
-    const Marca = getModel();
-    
+    const { id: idString } = await params;
+    const id = parseInt(idString);
     const body = await req.json();
-    const marca = await Marca.findByIdAndUpdate(id, body, { new: true });
-    
-    if (!marca) {
-      return NextResponse.json({ ok: false, error: 'Marca no encontrada' }, { status: 404 });
-    }
+
+    const marca = await prisma.marca.update({
+      where: { id },
+      data: body
+    });
     
     return NextResponse.json({ ok: true, marca });
   } catch (error: any) {
@@ -32,20 +18,12 @@ export async function PUT(
   }
 }
 
-// DELETE: Borrar marca por ID
-export async function DELETE(
-  req: NextRequest, 
-  { params }: { params: Promise<{ id: string }> } // ← CORRECCIÓN NEXT.JS 15
-) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params; // ← CORRECCIÓN: Await params
-    if (mongoose.connection.readyState === 0) await mongoose.connect(process.env.MONGODB_URI!);
-    const Marca = getModel();
+    const { id: idString } = await params;
+    const id = parseInt(idString);
     
-    const marca = await Marca.findByIdAndDelete(id);
-    if (!marca) {
-      return NextResponse.json({ ok: false, error: 'Marca no encontrada' }, { status: 404 });
-    }
+    await prisma.marca.delete({ where: { id } });
     
     return NextResponse.json({ ok: true, mensaje: 'Marca eliminada' });
   } catch (error: any) {

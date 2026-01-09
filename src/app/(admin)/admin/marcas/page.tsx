@@ -4,22 +4,26 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect } from 'react';
 import { useRouter } from "next/navigation";
 
-
+// ✅ CAMBIO 1: ID ahora es number y logo_url pasa a ser imagen (según tu DB)
 interface Marca {
-  _id: string;
+  id: number;
   nombre: string;
   descripcion?: string;
-  logo_url?: string;
+  imagen?: string; 
 }
 
 export default function AdminMarcas() {
   const [marcas, setMarcas] = useState<Marca[]>([]);
+  
+  // ✅ CAMBIO 2: Usamos 'imagen' en el estado del formulario
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
-    logo_url: ''
+    imagen: '' 
   });
-  const [editando, setEditando] = useState<string | null>(null);
+  
+  // ✅ CAMBIO 3: El estado de edición ahora espera un número o null
+  const [editando, setEditando] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -53,7 +57,7 @@ export default function AdminMarcas() {
 
       if (res.ok) {
         fetchMarcas();
-        setFormData({ nombre: '', descripcion: '', logo_url: '' });
+        setFormData({ nombre: '', descripcion: '', imagen: '' });
         setEditando(null);
       }
     } catch (error) {
@@ -67,12 +71,13 @@ export default function AdminMarcas() {
     setFormData({
       nombre: marca.nombre,
       descripcion: marca.descripcion || '',
-      logo_url: marca.logo_url || ''
+      imagen: marca.imagen || '' // ✅ Usamos imagen
     });
-    setEditando(marca._id);
+    setEditando(marca.id);
   };
 
-  const handleDelete = async (id: string) => {
+  // ✅ CAMBIO 4: La función recibe un number
+  const handleDelete = async (id: number) => {
     if (confirm('¿Eliminar esta marca?')) {
       try {
         await fetch(`/api/marcas/${id}`, { method: 'DELETE' });
@@ -89,15 +94,14 @@ export default function AdminMarcas() {
         <h1 className="text-4xl font-bold text-[#4A4A4A] mb-12">🏪 Marcas</h1>
 
         {/* Botón volver al panel de administración */}
-<div className="mb-12">
-  <button
-    onClick={() => router.push("/admin")}
-    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-[#6BAEC9] to-[#A8D7E6] hover:from-[#5FA0B3] hover:to-[#91C8D9] shadow-md transition-all duration-300"
-  >
-    ← Volver al Panel de Administración
-  </button>
-</div>
-
+        <div className="mb-12">
+          <button
+            onClick={() => router.push("/admin")}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-[#6BAEC9] to-[#A8D7E6] hover:from-[#5FA0B3] hover:to-[#91C8D9] shadow-md transition-all duration-300"
+          >
+            ← Volver al Panel de Administración
+          </button>
+        </div>
         
         {/* FORMULARIO */}
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-12 border border-[#6BAEC9]/10">
@@ -131,11 +135,11 @@ export default function AdminMarcas() {
             </div>
             
             <div>
-              <label className="block text-lg font-semibold text-[#4A4A4A] mb-3">Logo URL</label>
+              <label className="block text-lg font-semibold text-[#4A4A4A] mb-3">URL de la Imagen</label>
               <input
-                name="logo_url"
-                value={formData.logo_url}
-                onChange={(e) => setFormData({...formData, logo_url: e.target.value})}
+                name="imagen"
+                value={formData.imagen}
+                onChange={(e) => setFormData({...formData, imagen: e.target.value})}
                 placeholder="https://ejemplo.com/logo.png"
                 className="w-full p-4 border border-[#DDC9A3]/50 rounded-2xl focus:ring-4 focus:ring-[#6BAEC9]/20 text-lg"
               />
@@ -154,7 +158,7 @@ export default function AdminMarcas() {
                   type="button"
                   onClick={() => {
                     setEditando(null);
-                    setFormData({ nombre: '', descripcion: '', logo_url: '' });
+                    setFormData({ nombre: '', descripcion: '', imagen: '' });
                   }}
                   className="px-12 py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-2xl font-semibold transition-all"
                 >
@@ -182,13 +186,13 @@ export default function AdminMarcas() {
               </div>
             ) : (
               marcas.map((marca) => (
-                <div key={marca._id} className="px-8 py-8 hover:bg-[#F8F8F5] transition-colors group">
+                <div key={marca.id} className="px-8 py-8 hover:bg-[#F8F8F5] transition-colors group">
                   <div className="flex items-start lg:items-center gap-6">
                     {/* LOGO */}
                     <div className="flex-shrink-0">
-                      {marca.logo_url ? (
+                      {marca.imagen ? (
                         <img 
-                          src={marca.logo_url} 
+                          src={marca.imagen} 
                           alt={marca.nombre}
                           className="w-20 h-20 rounded-2xl object-cover shadow-lg border-4 border-[#F8F8F5]"
                           onError={(e) => {
@@ -208,7 +212,8 @@ export default function AdminMarcas() {
                       {marca.descripcion && (
                         <p className="text-lg text-[#6BAEC9] mb-1 line-clamp-2">{marca.descripcion}</p>
                       )}
-                      <p className="text-sm text-[#DDC9A3] font-mono">ID: {marca._id.slice(-8)}</p>
+                      {/* ✅ CAMBIO 5: Quitamos el .slice() */}
+                      <p className="text-sm text-[#DDC9A3] font-mono">ID: #{marca.id}</p>
                     </div>
                     
                     {/* ACCIONES */}
@@ -221,7 +226,7 @@ export default function AdminMarcas() {
                         ✏️
                       </button>
                       <button
-                        onClick={() => handleDelete(marca._id)}
+                        onClick={() => handleDelete(marca.id)}
                         className="p-3 bg-red-100 hover:bg-red-200 text-red-600 rounded-2xl hover:scale-110 transition-all shadow-md group-hover:shadow-lg"
                         title="Eliminar marca"
                       >

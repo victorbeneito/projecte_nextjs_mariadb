@@ -1,26 +1,6 @@
-// src/app/api/clientes/direccion/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
+import { prisma } from "@/lib/prisma";
 import jwt from 'jsonwebtoken';
-
-const clienteSchema = new mongoose.Schema({
-  nombre: String,
-  apellidos: String,
-  email: String,
-  password: String,
-  telefono: String,
-  empresa: String,
-  direccion: String,
-  direccionComplementaria: String,
-  codigoPostal: String,
-  ciudad: String,
-  pais: { type: String, default: 'España' },
-  provincia: String,
-  nif: String,
-  role: { type: String, default: 'cliente' }
-}, { timestamps: true });
-
-const Cliente = mongoose.models.Cliente || mongoose.model('Cliente', clienteSchema);
 
 function getTokenFromHeader(req: NextRequest) {
   const auth = req.headers.get('authorization');
@@ -30,22 +10,21 @@ function getTokenFromHeader(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    await mongoose.connect(process.env.MONGODB_URI!);
     const token = getTokenFromHeader(req);
-    if (!token) {
-      return NextResponse.json({ ok: false, error: 'Token requerido' }, { status: 401 });
-    }
+    if (!token) return NextResponse.json({ ok: false, error: 'Token requerido' }, { status: 401 });
 
-    const decoded = jwt.verify(token, process.env._CLIENTE!) as any;
+    const decoded: any = jwt.verify(token, process.env.SECRETO_JWT_CLIENTE!);
+    const id = parseInt(decoded.id);
 
-    const cliente = await Cliente.findById(decoded.id).select(
-      'nombre apellidos email telefono empresa direccion direccionComplementaria codigoPostal ciudad pais provincia nif'
-    );
-    if (!cliente) {
-      return NextResponse.json({ ok: false, error: 'Cliente no encontrado' }, { status: 404 });
-    }
+    const cliente = await prisma.cliente.findUnique({
+      where: { id },
+      // Prisma selecciona todo por defecto, puedes usar select si quieres filtrar campos específicos
+    });
 
-    return NextResponse.json({ ok: true, direccion: cliente });
+    if (!cliente) return NextResponse.json({ ok: false, error: 'Cliente no encontrado' }, { status: 404 });
+
+    const { password: _, ...datosDireccion } = cliente;
+    return NextResponse.json({ ok: true, direccion: datosDireccion });
   } catch (error: any) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
@@ -53,19 +32,17 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    await mongoose.connect(process.env.MONGODB_URI!);
     const token = getTokenFromHeader(req);
-    if (!token) {
-      return NextResponse.json({ ok: false, error: 'Token requerido' }, { status: 401 });
-    }
+    if (!token) return NextResponse.json({ ok: false, error: 'Token requerido' }, { status: 401 });
 
-    const decoded = jwt.verify(token, process.env.SECRETO_JWT_CLIENTE!) as any;
+    const decoded: any = jwt.verify(token, process.env.SECRETO_JWT_CLIENTE!) as any;
+    const id = parseInt(decoded.id);
     const body = await req.json();
 
-    const update = {
-      empresa: body.empresa || '',
+    const updateData = {
+      empresa: body.empresa,
       direccion: body.direccion,
-      direccionComplementaria: body.direccionComplementaria || '',
+      direccionComplementaria: body.direccionComplementaria,
       codigoPostal: body.codigoPostal,
       ciudad: body.ciudad,
       pais: body.pais || 'España',
@@ -74,17 +51,10 @@ export async function PUT(req: NextRequest) {
       nif: body.nif,
     };
 
-    const clienteActualizado = await Cliente.findByIdAndUpdate(
-      decoded.id,
-      update,
-      { new: true }
-    ).select(
-      'nombre apellidos email telefono empresa direccion direccionComplementaria codigoPostal ciudad pais provincia nif'
-    );
-
-    if (!clienteActualizado) {
-      return NextResponse.json({ ok: false, error: 'Cliente no encontrado' }, { status: 404 });
-    }
+    const clienteActualizado = await prisma.cliente.update({
+      where: { id },
+      data: updateData
+    });
 
     return NextResponse.json({ ok: true, direccion: clienteActualizado });
   } catch (error: any) {

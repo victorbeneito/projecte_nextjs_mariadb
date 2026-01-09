@@ -6,7 +6,7 @@ import Footer from "@/components/Footer";
 import { useState } from "react";
 
 type Categoria = {
-  _id: string;
+  id: number;
   nombre: string;
 };
 

@@ -4,7 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 
 type Categoria = {
-  _id: string;
+  id: number;
   nombre: string;
 };
 
@@ -22,9 +22,9 @@ export default function BannerPrincipal({ categories = [] }: Props) {
       (c) => c.nombre.trim().toLowerCase() === nombreCategoria.trim().toLowerCase()
     );
 
-    if (categoria?._id) {
+    if (categoria?.id) {
       // Ruta dinámica por id de categoría: /categoria/[id]
-      router.push(`/categorias/${categoria._id}`);
+      router.push(`/categorias/${categoria.id}`);
     } else {
       console.warn(`Categoría '${nombreCategoria}' no encontrada`);
     }

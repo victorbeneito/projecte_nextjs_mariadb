@@ -4,7 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 
 type Categoria = {
-  _id: string;
+  id: number;
   nombre: string;
 };
 
@@ -25,7 +25,7 @@ export default function BannersSection({ categories = [] }: Props) {
     );
 
     if (categoria) {
-      router.push(`/categorias/${categoria._id}`);
+      router.push(`/categorias/${categoria.id}`);
     } else {
       console.warn(
         `Categoría '${nombreCategoria}' no encontrada. Categorías disponibles:`,
