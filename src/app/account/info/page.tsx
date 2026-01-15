@@ -47,14 +47,23 @@ function InfoForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 1. Verificación de Token
     if (!token) {
         toast.error("No hay sesión activa");
         return;
     }
+
+    // 2. Verificación de Cliente (ESTO ARREGLA EL ERROR DE VERCEL) 🛡️
+    if (!cliente) {
+        toast.error("Esperando datos del cliente...");
+        return;
+    }
+
     setSaving(true);
 
     try {
-      // Enviamos el PUT
+      // Ahora TypeScript ya sabe que 'cliente' no es null aquí
       const res = await fetchWithAuth(`/api/clientes/${cliente.id}`, token, {
         method: "PUT",
         body: JSON.stringify(formData),
@@ -142,7 +151,6 @@ function InfoForm() {
 }
 
 // --- COMPONENTE PRINCIPAL (WRAPPER) ---
-// Definimos la función primero y luego la exportamos para evitar errores de parseo
 const InfoPage = () => {
   return (
     <Suspense fallback={<div className="p-10 text-center">Cargando formulario...</div>}>
