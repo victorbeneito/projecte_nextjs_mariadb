@@ -10,7 +10,7 @@ import { fetchWithAuth } from "@/utils/fetchWithAuth";
 
 export default function ResumenPage() {
   const router = useRouter();
-  const { cliente, token, loading } = useClienteAuth(); // ✅ Hook en nivel superior
+  const { cliente, token, loading } = useClienteAuth();
 
   const [carrito, setCarrito] = useState<CartItem[]>([]);
   const [subtotal, setSubtotal] = useState(0);
@@ -22,7 +22,6 @@ export default function ResumenPage() {
   const [descuento, setDescuento] = useState(0);
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
-  // 🔹 Cargar datos al entrar en la página
   useEffect(() => {
     if (!loading && !cliente) {
       router.push("/auth?redirect=/checkout/resumen");
@@ -54,13 +53,12 @@ export default function ResumenPage() {
     setMetodoPago(pago);
   }, [cliente, loading, router]);
 
-  // 🔹 Aplicar cupón de descuento
   const aplicarCupon = async () => {
     try {
-        if (!token) {
-  toast.error("Debes iniciar sesión para aplicar un cupón");
-  return;
-}
+      if (!token) {
+        toast.error("Debes iniciar sesión para aplicar un cupón");
+        return;
+      }
 
       const res = await fetchWithAuth("/api/coupons/validate", token, {
         method: "POST",
@@ -79,7 +77,6 @@ export default function ResumenPage() {
     }
   };
 
-  // 🔹 Confirmar pedido real en MongoDB
   const confirmarPedido = async () => {
     if (!aceptaTerminos) {
       toast.error("Debes aceptar los términos del servicio antes de continuar");
@@ -91,25 +88,20 @@ export default function ResumenPage() {
       return;
     }
 
-    console.log("Cliente actual:", cliente);
-    console.log("Token:", token);
-
-    // Cálculos de totales
     const envioCoste = metodoEnvio?.coste || 0;
     const pagoRecargo = metodoPago?.recargo || 0;
     const descuentoImporte = (subtotal * descuento) / 100;
     const totalFinal = subtotal + envioCoste + pagoRecargo - descuentoImporte;
 
     const body = {
-  carrito,
-  metodoEnvio,
-  metodoPago,
-  descuento,
-  totalFinal,
-  cuponCodigo: codigo,
-  cliente, // 👈 añadimos datos del cliente logueado
-};
-
+      carrito,
+      metodoEnvio,
+      metodoPago,
+      descuento,
+      totalFinal,
+      cuponCodigo: codigo,
+      cliente,
+    };
 
     try {
       const res = await fetchWithAuth("/api/pedidos/new", token, {
@@ -131,17 +123,16 @@ export default function ResumenPage() {
     }
   };
 
-  if (loading) return <p>Cargando...</p>;
+  if (loading) return <p className="text-center py-10 dark:text-white">Cargando...</p>;
   if (!cliente) return null;
 
-  // ✅ Mensaje de pedido confirmado
   if (pedidoConfirmado)
     return (
       <div className="max-w-3xl mx-auto py-16 text-center">
         <h1 className="text-3xl font-bold text-green-600 mb-4">
           🎉 ¡Pedido confirmado!
         </h1>
-        <p className="text-gray-600 mb-8">
+        <p className="text-gray-600 dark:text-gray-300 mb-8">
           Gracias por tu compra. Te enviaremos un correo de confirmación.
         </p>
         <Link
@@ -153,7 +144,6 @@ export default function ResumenPage() {
       </div>
     );
 
-  // Cálculos de totales
   const envioCoste = metodoEnvio?.coste || 0;
   const pagoRecargo = metodoPago?.recargo || 0;
   const descuentoImporte = (subtotal * descuento) / 100;
@@ -161,72 +151,95 @@ export default function ResumenPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold mb-8">Resumen final del pedido 🧾</h1>
+      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">
+        Resumen final del pedido 🧾
+      </h1>
 
       {/* Datos de envío */}
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <h2 className="text-lg font-semibold mb-4">Datos de envío</h2>
-        <p>
-          {cliente.nombre} {cliente.apellidos}
-        </p>
-        <p>
-          {cliente.direccion}, {cliente.codigoPostal} {cliente.ciudad}
-        </p>
-        <p className="text-sm text-gray-500 mt-1">
-          Método:{" "}
-          {metodoEnvio?.metodo === "ontime"
-            ? "Mensajería Ontime"
-            : "Recogida en tienda"}{" "}
-          ({envioCoste.toFixed(2)} €)
-        </p>
+      <div className="bg-white dark:bg-darkNavBg p-6 rounded-lg shadow mb-6 transition-colors duration-300">
+        <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Datos de envío</h2>
+        <div className="text-gray-800 dark:text-gray-300 space-y-1">
+          <p>
+            {cliente.nombre} {cliente.apellidos}
+          </p>
+          <p>
+            {cliente.direccion}, {cliente.codigoPostal} {cliente.ciudad}
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            Método:{" "}
+            <span className="font-medium text-gray-700 dark:text-gray-200">
+            {metodoEnvio?.metodo === "ontime"
+              ? "Mensajería Ontime"
+              : "Recogida en tienda"}{" "}
+            </span>
+            ({envioCoste.toFixed(2)} €)
+          </p>
+        </div>
       </div>
 
       {/* Método de pago */}
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <h2 className="text-lg font-semibold mb-4">Método de pago</h2>
-        <p>{metodoPago?.metodo || "No seleccionado"}</p>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className="bg-white dark:bg-darkNavBg p-6 rounded-lg shadow mb-6 transition-colors duration-300">
+        <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Método de pago</h2>
+        <p className="text-gray-800 dark:text-gray-200 capitalize">{metodoPago?.metodo || "No seleccionado"}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Recargo: {pagoRecargo.toFixed(2)} €
         </p>
       </div>
 
       {/* Carrito */}
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <h2 className="text-lg font-semibold mb-4">Productos</h2>
+      <div className="bg-white dark:bg-darkNavBg p-6 rounded-lg shadow mb-6 transition-colors duration-300">
+        <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Productos</h2>
         {Array.isArray(carrito) && carrito.length > 0 ? (
-          carrito.map((item) => (
-            <div key={item.id || item.id} className="flex justify-between text-sm mb-3">
-              <span>
-                {item.nombre} × {item.cantidad}
-              </span>
-              <span>
-                {((item.precioFinal ?? item.precio) * item.cantidad).toFixed(2)} €
-              </span>
-            </div>
-          ))
+          <div className="space-y-3">
+            {carrito.map((item) => (
+              <div key={item.id} className="flex justify-between text-sm text-gray-700 dark:text-gray-300 border-b dark:border-gray-700 pb-2 last:border-0">
+                <span>
+                  {item.nombre} × {item.cantidad}
+                </span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {((item.precioFinal ?? item.precio) * item.cantidad).toFixed(2)} €
+                </span>
+              </div>
+            ))}
+          </div>
         ) : (
-          <p className="text-sm text-gray-500">Tu carrito está vacío.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Tu carrito está vacío.</p>
         )}
-        <hr className="my-3" />
-        <p className="text-sm">Subtotal: {subtotal.toFixed(2)} €</p>
-        <p className="text-sm">Envío: {envioCoste.toFixed(2)} €</p>
-        <p className="text-sm">Recargo de pago: {pagoRecargo.toFixed(2)} €</p>
-        {descuento > 0 && (
-          <p className="text-sm text-green-600">
-            Descuento aplicado: -{descuento}%{" "}
-            <span className="text-gray-600">
-              (-{descuentoImporte.toFixed(2)} €)
+        
+        <hr className="my-4 dark:border-gray-700" />
+        
+        <div className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+            <div className="flex justify-between">
+                <span>Subtotal:</span>
+                <span>{subtotal.toFixed(2)} €</span>
+            </div>
+            <div className="flex justify-between">
+                <span>Envío:</span>
+                <span>{envioCoste.toFixed(2)} €</span>
+            </div>
+            <div className="flex justify-between">
+                <span>Recargo pago:</span>
+                <span>{pagoRecargo.toFixed(2)} €</span>
+            </div>
+            {descuento > 0 && (
+            <div className="flex justify-between text-green-600 dark:text-green-400">
+                <span>Descuento (-{descuento}%):</span>
+                <span>-{descuentoImporte.toFixed(2)} €</span>
+            </div>
+            )}
+        </div>
+
+        <div className="flex justify-between items-center mt-4 pt-4 border-t dark:border-gray-700">
+            <span className="text-lg font-semibold text-gray-900 dark:text-white">Total final:</span>
+            <span className="text-2xl font-bold text-primary">
+             {totalFinal.toFixed(2)} €
             </span>
-          </p>
-        )}
-        <p className="text-lg font-semibold mt-2">
-          Total final: {totalFinal.toFixed(2)} €
-        </p>
+        </div>
       </div>
 
       {/* Cupón */}
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <label className="block text-sm font-medium mb-2">
+      <div className="bg-white dark:bg-darkNavBg p-6 rounded-lg shadow mb-6 transition-colors duration-300">
+        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
           ¿Tienes un cupón de descuento?
         </label>
         <div className="flex gap-2">
@@ -235,7 +248,7 @@ export default function ResumenPage() {
             value={codigo}
             onChange={(e) => setCodigo(e.target.value)}
             placeholder="Introduce tu cupón"
-            className="border rounded-md p-2 flex-1 text-sm"
+            className="border dark:border-gray-600 rounded-md p-2 flex-1 text-sm bg-gray-50 dark:bg-darkBg text-gray-900 dark:text-white focus:outline-none focus:border-primary"
           />
           <button
             onClick={aplicarCupon}
@@ -245,7 +258,7 @@ export default function ResumenPage() {
           </button>
         </div>
         {descuento > 0 && (
-          <p className="text-green-600 text-sm mt-2">
+          <p className="text-green-600 dark:text-green-400 text-sm mt-2">
             Cupón aplicado: -{descuento}% de descuento
           </p>
         )}
@@ -258,9 +271,9 @@ export default function ResumenPage() {
           id="terminos"
           checked={aceptaTerminos}
           onChange={(e) => setAceptaTerminos(e.target.checked)}
-          className="mr-2"
+          className="mr-2 h-4 w-4"
         />
-        <label htmlFor="terminos" className="text-sm text-gray-700">
+        <label htmlFor="terminos" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
           Acepto los{" "}
           <Link
             href="/terminos"
@@ -276,11 +289,10 @@ export default function ResumenPage() {
       <button
         onClick={confirmarPedido}
         disabled={!aceptaTerminos}
-        className="w-full bg-primary text-white font-semibold py-3 rounded hover:bg-primaryHover transition disabled:opacity-50"
+        className="w-full bg-primary text-white font-semibold py-3 rounded hover:bg-primaryHover transition disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Confirmar compra
       </button>
     </div>
   );
 }
-

@@ -61,14 +61,14 @@ export default function PagoPage() {
     };
 
     localStorage.setItem("checkout_pago", JSON.stringify(pagoData));
-
-    // 👉 siguiente paso
     router.push("/checkout/resumen");
   };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold mb-6">Método de pago 💳</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
+        Método de pago 💳
+      </h1>
 
       {/* Opciones de pago */}
       <div className="space-y-4">
@@ -81,30 +81,34 @@ export default function PagoPage() {
         ].map((opt) => (
           <label
             key={opt.id}
-            className={`block border rounded-lg p-4 cursor-pointer transition ${
+            className={`block border rounded-lg p-4 cursor-pointer transition-colors duration-200 ${
               metodoPago === opt.id
                 ? "border-primary bg-primary/10"
-                : "border-gray-200 hover:border-primary"
+                : "border-gray-200 dark:border-gray-700 hover:border-primary dark:hover:border-primary"
             }`}
           >
-            <input
-              type="radio"
-              name="pago"
-              value={opt.id}
-              className="mr-3"
-              checked={metodoPago === opt.id}
-              onChange={() => setMetodoPago(opt.id)}
-            />
-            <span className="font-medium text-gray-800">{opt.label}</span>
+            <div className="flex items-center">
+              <input
+                type="radio"
+                name="pago"
+                value={opt.id}
+                className="mr-3"
+                checked={metodoPago === opt.id}
+                onChange={() => setMetodoPago(opt.id)}
+              />
+              <span className="font-medium text-gray-800 dark:text-gray-100">
+                {opt.label}
+              </span>
+            </div>
           </label>
         ))}
       </div>
 
       {/* Total + botón */}
-      <div className="mt-10 border-t pt-6 flex justify-between items-center">
-        <p className="text-lg font-semibold">
+      <div className="mt-10 border-t dark:border-gray-700 pt-6 flex justify-between items-center">
+        <p className="text-lg font-semibold text-gray-800 dark:text-white">
           Total provisional:{" "}
-          <span className="text-primary text-2xl">{total.toFixed(2)} €</span>
+          <span className="text-primary text-2xl ml-2">{total.toFixed(2)} €</span>
         </p>
 
         <button
