@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useClienteAuth } from "@/context/ClienteAuthContext";
 import { getCart } from "@/lib/cartService";
 import { FaShoppingCart } from "react-icons/fa";
-
 import { useDebounce } from "use-debounce";
 
 type Categoria = {
@@ -15,38 +14,45 @@ type Categoria = {
 };
 
 type NavbarProps = {
-  darkMode: boolean;
-  setDarkMode: (value: boolean) => void;
-  categories: Categoria[];
+  darkMode?: boolean;
+  setDarkMode?: (value: boolean) => void;
+  // Ya no necesitamos que nos pasen las categorías desde fuera
 };
 
-export default function Navbar({
-  darkMode,
-  setDarkMode,
-  categories = [],
-}: NavbarProps) {
+export default function Navbar({ darkMode, setDarkMode }: NavbarProps) {
   const router = useRouter();
   const { cliente, logout } = useClienteAuth();
   const [cartCount, setCartCount] = useState(0);
-
-  // 🔍 Estado del buscador
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch] = useDebounce(searchQuery, 400); // espera 0.4 s antes de aplicar la búsqueda
+  const [debouncedSearch] = useDebounce(searchQuery, 400);
+
+  // 🆕 ESTADO PARA LAS CATEGORÍAS
+  const [categories, setCategories] = useState<Categoria[]>([]);
+
+  // 🆕 EFECTO MÁGICO: Cargar categorías automáticamente al iniciar
+  useEffect(() => {
+    fetch("/api/categorias")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok && data.categorias) {
+          setCategories(data.categorias);
+        }
+      })
+      .catch((err) => console.error("Error cargando menú:", err));
+  }, []);
 
   useEffect(() => {
-  const query = debouncedSearch.trim();
-  if (!query) return; // ❌ no hace nada si está vacío
-  router.push(`/productos?q=${encodeURIComponent(query)}`);
-}, [debouncedSearch, router]);
+    const query = debouncedSearch.trim();
+    if (!query) return;
+    router.push(`/productos?q=${encodeURIComponent(query)}`);
+  }, [debouncedSearch, router]);
 
-  // 🧺 Contador de carrito
   const actualizarContador = () => {
     const cart = getCart();
     const totalCantidad = cart.reduce((acc, item) => acc + item.cantidad, 0);
     setCartCount(totalCantidad);
   };
 
-  // 🧠 Escuchar cambios en el carrito
   useEffect(() => {
     actualizarContador();
     const handleStorageChange = () => actualizarContador();
@@ -63,10 +69,11 @@ export default function Navbar({
     <nav className="flex justify-between items-center bg-terciary text-neutral px-8 py-2 font-poppins dark:bg-darkNavBg dark:text-darkNavText transition-colors duration-300">
       {/* Izquierda - categorías */}
       <div className="flex space-x-6 overflow-x-auto">
-        <Link href="/" className="hover:text-primary">
+        <Link href="/" className="hover:text-primary font-bold">
           Inicio
         </Link>
 
+        {/* Renderizamos las categorías que hemos cargado */}
         {categories.map((cat) => (
           <Link
             key={cat.id}
@@ -78,31 +85,27 @@ export default function Navbar({
         ))}
       </div>
 
-      {/* Derecha - búsqueda, modo oscuro, usuario, carrito */}
+      {/* Derecha */}
       <div className="flex items-center space-x-4">
-        {/* 🔍 Buscador live */}
         <input
           type="text"
-          placeholder="Buscar productos..."
+          placeholder="Buscar..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="px-3 py-1 rounded-md text-black"
         />
 
-        {/* 🌙 Dark mode */}
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          aria-label="Toggle Dark Mode"
-          className="bg-primary text-white rounded-full p-2 hover:bg-primaryHover transition-colors duration-300"
-        >
-          {darkMode ? "🌞" : "🌙"}
-        </button>
+        {setDarkMode && (
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className="bg-primary text-white rounded-full p-2"
+          >
+            {darkMode ? "🌞" : "🌙"}
+          </button>
+        )}
 
-        {/* 🛒 Carrito */}
         <Link href="/carrito" className="relative">
-          <span className="text-2xl">
-            <FaShoppingCart />
-          </span>
+          <span className="text-2xl"><FaShoppingCart /></span>
           {cartCount > 0 && (
             <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
               {cartCount}
@@ -110,32 +113,15 @@ export default function Navbar({
           )}
         </Link>
 
-        {/* 👤 Usuario */}
         {cliente ? (
-          <div className="flex items-center gap-3">
-            <Link
-              href="/account"
-              className="px-3 py-1 rounded-xl bg-primary text-white font-semibold hover:bg-primaryHover transition"
-            >
-              Hola, {cliente.nombre}
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition"
-            >
-              Cerrar
-            </button>
+          <div className="flex gap-2">
+            <Link href="/account" className="px-3 py-1 bg-primary text-white rounded">Hola, {cliente.nombre}</Link>
+            <button onClick={handleLogout} className="px-3 py-1 bg-red-500 text-white rounded">Salir</button>
           </div>
         ) : (
-          <Link
-            href="/auth"
-            className="px-4 py-2 rounded-xl bg-primary text-white font-semibold hover:bg-primaryHover transition"
-          >
-            Iniciar sesión
-          </Link>
+          <Link href="/auth" className="px-4 py-2 bg-primary text-white rounded">Login</Link>
         )}
       </div>
     </nav>
   );
 }
-

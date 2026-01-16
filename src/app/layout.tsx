@@ -1,6 +1,10 @@
 import "./globals.css";
 import { ClienteAuthProvider } from "@/context/ClienteAuthContext";
 import { AuthProvider } from "@/context/AuthContext";
+// 1. IMPORTANTE: Importar el Navbar
+import Navbar from "@/components/Navbar"; 
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Mi aplicación",
@@ -16,12 +20,48 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body className="bg-fondo dark:bg-darkBg">
         <AuthProvider>
-          <ClienteAuthProvider>{children}</ClienteAuthProvider>
+          <ClienteAuthProvider>
+            
+            {/* 2. IMPORTANTE: Aquí pintamos el menú */}
+            <Navbar /> 
+            
+            {/* Y debajo el resto de la página */}
+            {children}
+            
+          </ClienteAuthProvider>
         </AuthProvider>
       </body>
     </html>
   );
 }
+
+
+// import "./globals.css";
+// import { ClienteAuthProvider } from "@/context/ClienteAuthContext";
+// import { AuthProvider } from "@/context/AuthContext";
+
+// export const dynamic = "force-dynamic";
+
+// export const metadata = {
+//   title: "Mi aplicación",
+//   description: "Proyecto Next.js",
+// };
+
+// export default function RootLayout({
+//   children,
+// }: {
+//   children: React.ReactNode;
+// }) {
+//   return (
+//     <html lang="es" suppressHydrationWarning>
+//       <body className="bg-fondo dark:bg-darkBg">
+//         <AuthProvider>
+//           <ClienteAuthProvider>{children}</ClienteAuthProvider>
+//         </AuthProvider>
+//       </body>
+//     </html>
+//   );
+// }
 
 
 // import "./globals.css";
