@@ -3,34 +3,55 @@
 import Header from "@/components/Header";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { useState } from "react";
+// Ya no necesitamos useState para el modo oscuro aquí
 
-type Categoria = {
-  id: number;
-  nombre: string;
-};
-
-export default function AppShell({
-  children,
-  categorias = [],
-}: {
-  children: React.ReactNode;
-  categorias?: Categoria[];
-}) {
-  const [darkMode, setDarkMode] = useState(false);
-
+export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`min-h-screen flex flex-col ${darkMode ? "dark" : ""}`}>
+    <div className="min-h-screen flex flex-col">
       <Header />
-      <Navbar
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
-              />
-      <main className="flex-1 bg-gray-100 dark:bg-darkBg">{children}</main>
+      {/* El Navbar ya se gestiona solo con next-themes */}
+      <Navbar /> 
+      <main className="flex-1">
+        {children}
+      </main>
       <Footer />
     </div>
   );
 }
+
+// "use client";
+
+// import Header from "@/components/Header";
+// import Navbar from "@/components/Navbar";
+// import Footer from "@/components/Footer";
+// import { useState } from "react";
+
+// type Categoria = {
+//   id: number;
+//   nombre: string;
+// };
+
+// export default function AppShell({
+//   children,
+//   categorias = [],
+// }: {
+//   children: React.ReactNode;
+//   categorias?: Categoria[];
+// }) {
+//   const [darkMode, setDarkMode] = useState(false);
+
+//   return (
+//     <div className={`min-h-screen flex flex-col ${darkMode ? "dark" : ""}`}>
+//       <Header />
+//       <Navbar
+//         darkMode={darkMode}
+//         setDarkMode={setDarkMode}
+//               />
+//       <main className="flex-1 bg-gray-100 dark:bg-darkBg">{children}</main>
+//       <Footer />
+//     </div>
+//   );
+// }
 
 
 // "use client";
