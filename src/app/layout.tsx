@@ -1,8 +1,8 @@
 import "./globals.css";
 import { ClienteAuthProvider } from "@/context/ClienteAuthContext";
 import { AuthProvider } from "@/context/AuthContext";
-// 1. IMPORTANTE: Importar el Navbar
-import Navbar from "@/components/Navbar"; 
+// 👇 1. Importamos el proveedor del tema (que creamos antes)
+import { ThemeProvider } from "@/components/ThemeProvider"; 
 
 export const dynamic = "force-dynamic";
 
@@ -18,20 +18,24 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className="bg-fondo dark:bg-darkBg">
-        <AuthProvider>
-          <ClienteAuthProvider>
-                        
-            {/* Y debajo el resto de la página */}
-            {children}
-            
-          </ClienteAuthProvider>
-        </AuthProvider>
+      {/* 👇 Añadimos transición y colores de texto para que se vea bien al cambiar */}
+      <body className="bg-fondo dark:bg-darkBg text-secondary dark:text-darkNavText transition-colors duration-300">
+        
+        {/* 👇 2. IMPORTANTE: Envolver TODO con el ThemeProvider */}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          
+          <AuthProvider>
+            <ClienteAuthProvider>
+              {children}
+            </ClienteAuthProvider>
+          </AuthProvider>
+
+        </ThemeProvider>
+        
       </body>
     </html>
   );
 }
-
 
 // import "./globals.css";
 // import { ClienteAuthProvider } from "@/context/ClienteAuthContext";
