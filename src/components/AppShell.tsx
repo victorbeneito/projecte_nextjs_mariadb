@@ -25,8 +25,7 @@ export default function AppShell({
       <Navbar
         darkMode={darkMode}
         setDarkMode={setDarkMode}
-        categories={categorias}
-      />
+              />
       <main className="flex-1 bg-gray-100 dark:bg-darkBg">{children}</main>
       <Footer />
     </div>
