@@ -21,10 +21,7 @@ export default function RootLayout({
       <body className="bg-fondo dark:bg-darkBg">
         <AuthProvider>
           <ClienteAuthProvider>
-            
-            {/* 2. IMPORTANTE: Aquí pintamos el menú */}
-            <Navbar /> 
-            
+                        
             {/* Y debajo el resto de la página */}
             {children}
             
