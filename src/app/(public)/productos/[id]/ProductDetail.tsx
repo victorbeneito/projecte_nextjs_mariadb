@@ -38,37 +38,26 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
 
   const [imagenActiva, setImagenActiva] = useState(imagenes[0] ?? "");
   const [cantidad, setCantidad] = useState(1);
-  const [tabActiva, setTabActiva] = useState<
-    "descripcion" | "detalles" | "opiniones"
-  >("descripcion");
-  const [tamanoSeleccionado, setTamanoSeleccionado] = useState<string | null>(
-    null
-  );
-  const [tiradorSeleccionado, setTiradorSeleccionado] = useState<string | null>(
-    null
-  );
-  const [colorSeleccionado, setColorSeleccionado] = useState<string | null>(
-    null
-  );
+  const [tabActiva, setTabActiva] = useState<"descripcion" | "detalles" | "opiniones">("descripcion");
+  const [tamanoSeleccionado, setTamanoSeleccionado] = useState<string | null>(null);
+  const [tiradorSeleccionado, setTiradorSeleccionado] = useState<string | null>(null);
+  const [colorSeleccionado, setColorSeleccionado] = useState<string | null>(null);
 
   const tamaños = variantes.filter((v) => v.tamaño);
   const tiradores = variantes.filter((v) => v.tirador);
   const colores = variantes.filter((v) => v.color);
 
   const precioBase = producto.precio_descuento ?? producto.precio;
-  const extraTamanoVariante = tamaños.find(
-    (t) => t.tamaño === tamanoSeleccionado
-  );
+  const extraTamanoVariante = tamaños.find((t) => t.tamaño === tamanoSeleccionado);
   const extraTamano = extraTamanoVariante?.precio_extra ?? 0;
   const precioFinal = precioBase + extraTamano;
 
   const [modalAbierto, setModalAbierto] = useState(false);
 
-  // ✅ Corregido: añadimos la propiedad imagen
   const handleAddToCart = async () => {
     await addToCart({
       ...producto,
-      id: Number(producto.id), 
+      id: Number(producto.id),
       cantidad,
       tamanoSeleccionado: tamanoSeleccionado ?? undefined,
       tiradorSeleccionado: tiradorSeleccionado ?? undefined,
@@ -76,44 +65,33 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
       precioFinal,
       imagen: imagenActiva || producto.imagenes?.[0] || "",
     });
-    
-    // 👇 FALTABA ESTO: Abrir el modal y cerrar la función
-    setModalAbierto(true); 
+    setModalAbierto(true);
   };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
       {/* Migas de pan */}
-      <nav className="text-sm text-gray-500 mb-2">
-        <Link href="/" className="cursor-pointer hover:underline">
-          Inicio
-        </Link>
+      <nav className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+        <Link href="/" className="cursor-pointer hover:underline">Inicio</Link>
         <span className="mx-1">/</span>
         {producto.categoria && producto.categoria.id ? (
-          <Link
-            href={`/categorias/${producto.categoria.id}`}
-            className="cursor-pointer hover:underline"
-          >
+          <Link href={`/categorias/${producto.categoria.id}`} className="cursor-pointer hover:underline">
             {producto.categoria.nombre}
           </Link>
         ) : (
           <span>Sin categoría</span>
         )}
         <span className="mx-1">/</span>
-        <span className="text-gray-800 font-medium">{producto.nombre}</span>
+        <span className="text-gray-800 dark:text-gray-200 font-medium">{producto.nombre}</span>
       </nav>
 
       {/* Zona superior: imágenes + info */}
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Card imágenes */}
-        <div className="bg-white shadow rounded-lg p-4">
-          <div className="aspect-[4/3] w-full overflow-hidden rounded-md bg-gray-100 flex items-center justify-center">
+        <div className="bg-white dark:bg-darkNavBg shadow rounded-lg p-4 transition-colors duration-300">
+          <div className="aspect-[4/3] w-full overflow-hidden rounded-md bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
             {imagenActiva ? (
-              <img
-                src={imagenActiva}
-                alt={producto.nombre}
-                className="h-full w-full object-cover"
-              />
+              <img src={imagenActiva} alt={producto.nombre} className="h-full w-full object-cover" />
             ) : (
               <span className="text-gray-400 text-sm">Sin imagen</span>
             )}
@@ -127,16 +105,10 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
                   type="button"
                   onClick={() => setImagenActiva(img)}
                   className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded border ${
-                    imagenActiva === img
-                      ? "border-primary"
-                      : "border-gray-200"
+                    imagenActiva === img ? "border-primary" : "border-gray-200 dark:border-gray-700"
                   }`}
                 >
-                  <img
-                    src={img}
-                    alt={`${producto.nombre} ${idx + 1}`}
-                    className="h-full w-full object-cover"
-                  />
+                  <img src={img} alt={`${producto.nombre} ${idx + 1}`} className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>
@@ -144,8 +116,8 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
         </div>
 
         {/* Card info producto */}
-        <div className="bg-white shadow rounded-lg p-6 flex flex-col gap-4">
-          <h1 className="text-2xl font-semibold text-gray-900">
+        <div className="bg-white dark:bg-darkNavBg shadow rounded-lg p-6 flex flex-col gap-4 transition-colors duration-300">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             {producto.nombre}
           </h1>
 
@@ -170,19 +142,15 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
           <div className="space-y-4">
             {tamaños.length > 0 && (
               <div>
-                <h3 className="text-sm font-medium mb-1">Tamaño</h3>
+                <h3 className="text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Tamaño</h3>
                 <select
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border rounded px-3 py-2 text-sm bg-white dark:bg-darkBg dark:border-gray-600 dark:text-white"
                   value={tamanoSeleccionado ?? ""}
-                  onChange={(e) =>
-                    setTamanoSeleccionado(e.target.value || null)
-                  }
+                  onChange={(e) => setTamanoSeleccionado(e.target.value || null)}
                 >
                   <option value="">Selecciona tamaño</option>
                   {tamaños.map((t) => (
-                    <option key={t.id} value={t.tamaño}>
-                      {t.tamaño}
-                    </option>
+                    <option key={t.id} value={t.tamaño}>{t.tamaño}</option>
                   ))}
                 </select>
               </div>
@@ -190,17 +158,17 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
 
             {tiradores.length > 0 && (
               <div>
-                <h3 className="text-sm font-medium mb-1">Tirador</h3>
+                <h3 className="text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Tirador</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {tiradores.map((t) => (
                     <button
                       key={t.id}
                       type="button"
                       onClick={() => setTiradorSeleccionado(t.tirador || null)}
-                      className={`border rounded px-3 py-2 text-sm ${
+                      className={`border rounded px-3 py-2 text-sm transition-colors ${
                         tiradorSeleccionado === t.tirador
-                          ? "border-primary bg-primary/10"
-                          : "hover:border-primary"
+                          ? "border-primary bg-primary/10 text-primary dark:text-primaryHover"
+                          : "border-gray-200 dark:border-gray-600 dark:text-gray-300 hover:border-primary"
                       }`}
                     >
                       {t.tirador}
@@ -212,17 +180,17 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
 
             {colores.length > 0 && (
               <div>
-                <h3 className="text-sm font-medium mb-1">Color</h3>
+                <h3 className="text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Color</h3>
                 <div className="flex flex-wrap gap-2">
                   {colores.map((c) => (
                     <button
                       key={c.id}
                       type="button"
                       onClick={() => setColorSeleccionado(c.color || null)}
-                      className={`border rounded-full h-8 px-3 text-xs flex items-center justify-center ${
+                      className={`border rounded-full h-8 px-3 text-xs flex items-center justify-center transition-colors ${
                         colorSeleccionado === c.color
-                          ? "border-primary bg-primary/10"
-                          : "hover:border-primary"
+                          ? "border-primary bg-primary/10 text-primary dark:text-primaryHover"
+                          : "border-gray-200 dark:border-gray-600 dark:text-gray-300 hover:border-primary"
                       }`}
                     >
                       {c.color}
@@ -235,11 +203,11 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
 
           {/* Cantidad + Botón */}
           <div className="flex items-center gap-4 mt-2">
-            <div className="flex items-center border rounded">
+            <div className="flex items-center border dark:border-gray-600 rounded overflow-hidden">
               <button
                 type="button"
                 onClick={() => setCantidad((c) => Math.max(1, c - 1))}
-                className="px-3 py-2 text-sm"
+                className="px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 dark:text-white hover:bg-gray-100"
               >
                 -
               </button>
@@ -247,15 +215,13 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
                 type="number"
                 min={1}
                 value={cantidad}
-                onChange={(e) =>
-                  setCantidad(Math.max(1, Number(e.target.value) || 1))
-                }
-                className="w-14 text-center border-x text-sm"
+                onChange={(e) => setCantidad(Math.max(1, Number(e.target.value) || 1))}
+                className="w-14 text-center border-x dark:border-gray-600 text-sm bg-white dark:bg-darkBg dark:text-white py-2"
               />
               <button
                 type="button"
                 onClick={() => setCantidad((c) => c + 1)}
-                className="px-3 py-2 text-sm"
+                className="px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 dark:text-white hover:bg-gray-100"
               >
                 +
               </button>
@@ -273,44 +239,27 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
       </div>
 
       {/* Descripción / detalles / opiniones */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="border-b flex">
-          <button
-            className={`flex-1 px-4 py-2 text-sm font-medium ${
-              tabActiva === "descripcion"
-                ? "border-b-2 border-primary text-primary"
-                : "text-gray-500"
-            }`}
-            onClick={() => setTabActiva("descripcion")}
-          >
-            Descripción
-          </button>
-          <button
-            className={`flex-1 px-4 py-2 text-sm font-medium ${
-              tabActiva === "detalles"
-                ? "border-b-2 border-primary text-primary"
-                : "text-gray-500"
-            }`}
-            onClick={() => setTabActiva("detalles")}
-          >
-            Detalles del producto
-          </button>
-          <button
-            className={`flex-1 px-4 py-2 text-sm font-medium ${
-              tabActiva === "opiniones"
-                ? "border-b-2 border-primary text-primary"
-                : "text-gray-500"
-            }`}
-            onClick={() => setTabActiva("opiniones")}
-          >
-            Opiniones
-          </button>
+      <div className="bg-white dark:bg-darkNavBg shadow rounded-lg transition-colors duration-300">
+        <div className="border-b dark:border-gray-700 flex">
+          {(["descripcion", "detalles", "opiniones"] as const).map((tab) => (
+            <button
+              key={tab}
+              className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                tabActiva === tab
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              }`}
+              onClick={() => setTabActiva(tab)}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
         </div>
 
-        <div className="p-4 text-sm text-gray-700">
+        <div className="p-4 text-sm text-gray-700 dark:text-gray-300">
           {tabActiva === "descripcion" && (
             <div
-              className="prose max-w-none prose-img:max-w-full prose-img:h-auto"
+              className="prose max-w-none prose-img:max-w-full prose-img:h-auto dark:prose-invert"
               dangerouslySetInnerHTML={{
                 __html:
                   (producto as any).descripcion_html_cruda ||
@@ -321,10 +270,7 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
           )}
 
           {tabActiva === "detalles" && (
-            <p>
-              Aquí irán los detalles técnicos del producto (tejido, composición,
-              mantenimiento, etc.).
-            </p>
+            <p>Aquí irán los detalles técnicos del producto.</p>
           )}
 
           {tabActiva === "opiniones" && (
@@ -333,7 +279,6 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
         </div>
       </div>
 
-      {/* Modal de confirmación */}
       <CartModal
         isOpen={modalAbierto}
         onClose={() => setModalAbierto(false)}

@@ -14,14 +14,19 @@ export default function AccountSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 bg-white shadow-md p-6">
-      <h2 className="text-lg font-semibold mb-4">Mi cuenta</h2>
+    // 👇 FIX: Fondo oscuro y texto claro en modo oscuro
+    <aside className="w-64 bg-white dark:bg-darkNavBg shadow-md p-6 rounded-lg h-fit transition-colors duration-300">
+      <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Mi cuenta</h2>
       <nav className="flex flex-col space-y-2">
         {links.map((link) => (
           <Link
             key={link.href}
             href={link.href}
-            className={`p-2 rounded-md hover:bg-gray-100 ${pathname === link.href ? "bg-gray-100 font-medium" : ""}`}
+            className={`p-2 rounded-md transition-colors duration-200 
+              ${pathname === link.href 
+                ? "bg-gray-100 dark:bg-gray-700 font-medium text-primary dark:text-primaryHover" 
+                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+              }`}
           >
             {link.label}
           </Link>
