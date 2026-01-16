@@ -97,6 +97,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
     const body = await req.json();
 
+    // 👇 AQUÍ ESTÁ EL CAMBIO: Añadimos nif y empresa
     const datosParaActualizar: any = {
         nombre: body.nombre,
         apellidos: body.apellidos,
@@ -106,7 +107,9 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
         ciudad: body.ciudad,
         provincia: body.provincia,
         pais: body.pais,
-        codigoPostal: body.cp || body.codigoPostal, 
+        codigoPostal: body.cp || body.codigoPostal,
+        nif: body.nif || body.dni, // ✅ AÑADIDO (Aceptamos nif o dni por si acaso)
+        empresa: body.empresa,     // ✅ AÑADIDO
     };
 
     // Limpiar undefined
