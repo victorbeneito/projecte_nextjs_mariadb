@@ -1,4 +1,4 @@
-import "./globals.css";
+import "@/app/globals.css";
 // 👇 1. Importa el proveedor que acabamos de crear
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ClienteAuthProvider } from "@/context/ClienteAuthContext";
