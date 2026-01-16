@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken"; // 👈 IMPORTANTE: Añadir esto
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     
-    // Desestructuramos los datos que envía el formulario
     const { 
       nombre, 
       apellidos, 
@@ -16,20 +16,20 @@ export async function POST(req: NextRequest) {
       direccion, 
       ciudad, 
       codigoPostal, 
-      cp, // A veces los formularios lo envían como 'cp'
+      cp, 
       provincia, 
       pais 
     } = body;
 
-    // 1. Validaciones obligatorias
+    // 1. Validaciones
     if (!email || !password || !nombre) {
       return NextResponse.json({ 
         ok: false, 
-        error: "Faltan campos obligatorios (nombre, email, password)" 
+        error: "Faltan campos obligatorios" 
       }, { status: 400 });
     }
 
-    // 2. Comprobar si el email YA existe
+    // 2. Comprobar duplicados
     const existe = await prisma.cliente.findUnique({
       where: { email: email.toLowerCase() },
     });
@@ -37,17 +37,15 @@ export async function POST(req: NextRequest) {
     if (existe) {
       return NextResponse.json({ 
         ok: false, 
-        error: "Este correo electrónico ya está registrado." 
+        error: "Este correo ya está registrado." 
       }, { status: 400 });
     }
 
-    // 3. Encriptar la contraseña (para no guardarla en texto plano)
+    // 3. Encriptar password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // 4. Mapear el código postal (por si viene como 'cp' o 'codigoPostal')
     const cpFinal = codigoPostal || cp || "";
 
-    // 5. CREAR EL CLIENTE EN LA BASE DE DATOS
+    // 4. CREAR CLIENTE
     const nuevoCliente = await prisma.cliente.create({
       data: {
         nombre,
@@ -60,24 +58,39 @@ export async function POST(req: NextRequest) {
         codigoPostal: cpFinal,
         provincia: provincia || null,
         pais: pais || null,
-        role: "client", // Rol por defecto
+        role: "client",
       },
     });
 
-    // 6. Devolver respuesta de éxito (sin la contraseña)
+    // 5. 🔥 GENERAR TOKEN (ESTO ES LO QUE FALTABA) 🔥
+    const secret = process.env.SECRETO_JWT_CLIENTE || "clave_secreta_cliente_2026";
+    
+    const token = jwt.sign(
+      { 
+        id: nuevoCliente.id, 
+        email: nuevoCliente.email, 
+        rol: "client",
+        nombre: nuevoCliente.nombre 
+      }, 
+      secret, 
+      { expiresIn: "30d" }
+    );
+
+    // 6. Respuesta con Token
     const { password: _, ...clienteSinPass } = nuevoCliente;
 
     return NextResponse.json({ 
       ok: true, 
-      message: "Usuario registrado correctamente",
-      cliente: clienteSinPass
+      message: "Registro exitoso",
+      cliente: clienteSinPass,
+      token: token // 👈 ¡Ahora sí enviamos el token!
     }, { status: 201 });
 
   } catch (error: any) {
     console.error("❌ Error en Register:", error);
     return NextResponse.json({ 
       ok: false, 
-      error: "Error interno del servidor al registrar." 
+      error: "Error interno del servidor" 
     }, { status: 500 });
   }
 }
