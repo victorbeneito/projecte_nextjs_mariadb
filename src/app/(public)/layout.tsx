@@ -1,37 +1,19 @@
-import "@/app/globals.css";
-// 👇 1. Importa el proveedor que acabamos de crear
-import { ThemeProvider } from "@/components/ThemeProvider";
-import { ClienteAuthProvider } from "@/context/ClienteAuthContext";
-import { AuthProvider } from "@/context/AuthContext";
+import AppShell from "@/components/AppShell";
+// 👇 IMPORTANTE: El CSS global se importa aquí o en el root layout. 
+// Si ya está en src/app/layout.tsx, aquí NO hace falta.
+// Si te da error de CSS, borra la línea del import css de este archivo.
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "El Hogar de tus Sueños",
-  description: "Textil hogar y decoración",
-};
-
-export default function RootLayout({
+export default function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      {/* 👇 Añade suppressHydrationWarning al html para evitar errores de tema */}
-      <body className="bg-fondo dark:bg-darkBg text-gray-900 dark:text-gray-100 transition-colors duration-300">
-        
-        {/* 👇 2. Envuelve TODO con el ThemeProvider */}
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          
-          <AuthProvider>
-            <ClienteAuthProvider>
-               {children}
-            </ClienteAuthProvider>
-          </AuthProvider>
-
-        </ThemeProvider>
-      </body>
-    </html>
+    // Simplemente envolvemos el contenido en el AppShell
+    <AppShell>
+      {children}
+    </AppShell>
   );
 }
