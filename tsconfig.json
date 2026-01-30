@@ -48,5 +48,6 @@
     "playwright-report",
     "tmp",
     "temp"
+    
   ]
 }
