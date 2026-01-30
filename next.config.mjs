@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     output: 'standalone',
+    distDir: 'build',
 typescript: {
     // !! ATENCIÓN !!
     // Ignoramos errores para que Azure pueda desplegar aunque el seed.ts tenga fallos
