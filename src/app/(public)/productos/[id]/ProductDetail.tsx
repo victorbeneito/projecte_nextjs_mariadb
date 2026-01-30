@@ -14,7 +14,7 @@ interface Variante {
   id: number;
   color?: string;
   imagen?: string;
-  tamaño?: string;
+  tamano?: string;
   tirador?: string;
   precio_extra?: number | null;
 }
@@ -43,12 +43,12 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
   const [tiradorSeleccionado, setTiradorSeleccionado] = useState<string | null>(null);
   const [colorSeleccionado, setColorSeleccionado] = useState<string | null>(null);
 
-  const tamaños = variantes.filter((v) => v.tamaño);
+  const tamaños = variantes.filter((v) => v.tamano);
   const tiradores = variantes.filter((v) => v.tirador);
   const colores = variantes.filter((v) => v.color);
 
   const precioBase = producto.precio_descuento ?? producto.precio;
-  const extraTamanoVariante = tamaños.find((t) => t.tamaño === tamanoSeleccionado);
+  const extraTamanoVariante = tamaños.find((t) => t.tamano === tamanoSeleccionado);
   const extraTamano = extraTamanoVariante?.precio_extra ?? 0;
   const precioFinal = precioBase + extraTamano;
 
@@ -123,11 +123,11 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
 
           {/* Precio */}
           <div className="flex items-baseline gap-3">
-            <span className="text-2xl font-bold text-primary">
+            <span className="text-2xl font-bold text-primary dark:text-white">
               {precioFinal.toFixed(2)} €
             </span>
             {producto.precio_descuento && (
-              <span className="text-sm line-through text-gray-400">
+              <span className="text-sm line-through text-gray-400 dark:text-white">
                 {producto.precio.toFixed(2)} €
               </span>
             )}
@@ -150,7 +150,7 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
                 >
                   <option value="">Selecciona tamaño</option>
                   {tamaños.map((t) => (
-                    <option key={t.id} value={t.tamaño}>{t.tamaño}</option>
+                    <option key={t.id} value={t.tamano}>{t.tamano}</option>
                   ))}
                 </select>
               </div>
@@ -230,7 +230,7 @@ export default function ProductDetail({ producto }: { producto: Producto }) {
             <button
               type="button"
               onClick={handleAddToCart}
-              className="flex-1 bg-primary text-white py-2 rounded font-semibold hover:bg-primaryHover transition-colors"
+              className="flex-1 bg-primary text-white py-2 rounded font-semibold hover:bg-primaryHover transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
             >
               Añadir al carrito
             </button>

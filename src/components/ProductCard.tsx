@@ -39,7 +39,7 @@ export default function ProductCard({ producto }: ProductCardProps) {
                 : "Sin categoría"}
             </p>
 
-            <p className="text-accent font-bold mb-3 dark:text-darkBg">
+            <p className="text-accent font-bold mb-3 dark:text-darkNavText">
               {producto.precio
                 ? `${producto.precio.toFixed(2)} €`
                 : "Sin precio"}
@@ -50,7 +50,7 @@ export default function ProductCard({ producto }: ProductCardProps) {
         <div className="p-3">
           <button
             type="button"
-            className="mt-auto bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition-colors duration-300"
+            className="mt-auto bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition-colors duration-300 dark:bg-gray-700 dark:hover:bg-gray-600"
             onClick={(e) => e.preventDefault()}
           >
             Comprar

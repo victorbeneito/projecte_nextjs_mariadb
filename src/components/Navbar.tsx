@@ -123,7 +123,7 @@ export default function Navbar() {
 
         {cliente ? (
           <div className="flex gap-2 items-center">
-            <Link href="/account" className="px-3 py-1 bg-primary text-white rounded hover:bg-primaryHover transition-colors">
+            <Link href="/account" className="px-3 py-1 bg-primary text-white rounded hover:bg-primaryHover transition-colors dark:bg-gray-700 dark:hover:bg-gray-600">
               Hola, {cliente.nombre}
             </Link>
             <button 

@@ -25,7 +25,5 @@ export async function fetchWithAuth(url: string, token: string, options: Request
     return { error: `Error de servidor (${res.status})` };
   }
 
-  
-
   return data;
 }

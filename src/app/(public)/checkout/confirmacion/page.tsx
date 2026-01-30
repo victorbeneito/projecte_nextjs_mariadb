@@ -69,7 +69,7 @@ export default function ConfirmacionPage() {
         </p>
         <Link
           href="/"
-          className="bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition"
+          className="bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition dark:bg-gray-700 dark:hover:bg-gray-600"
         >
           ← Volver al inicio
         </Link>
@@ -193,7 +193,7 @@ export default function ConfirmacionPage() {
 
       <Link
         href="/"
-        className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold text-lg hover:bg-primaryHover transition"
+        className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold text-lg hover:bg-primaryHover transition dark:bg-gray-700 dark:hover:bg-gray-600"
       >
         ← Volver al inicio
       </Link>
