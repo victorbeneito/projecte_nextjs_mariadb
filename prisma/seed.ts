@@ -34,7 +34,7 @@ async function main() {
       marcaId: marca.id,
       categoriaId: categoria.id,
       imagenes: ["silla1.jpg", "silla2.jpg"], // Array JSON
-      variantes: {
+      Variante: {
         create: [
           { color: 'Negro', precio_extra: 0 },
           { color: 'Rojo', precio_extra: 10 }
