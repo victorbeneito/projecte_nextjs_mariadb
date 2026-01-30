@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npx prisma generate && next build && mkdir -p build/standalone/node_modules && cp -r node_modules/.prisma build/standalone/node_modules/ && cp -r public build/standalone/ && mkdir -p build/standalone/build && cp -r build/static build/standalone/build/",
+    "build": "npx prisma generate && next build && cp -r public build/standalone/ && cp -r build/static build/standalone/build/ && cp -r prisma build/standalone/",
     "start": "node build/standalone/server.js",
     "lint": "eslint",
     "postinstall": "prisma generate"
