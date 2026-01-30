@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    output: 'standalone',
 typescript: {
     // !! ATENCIÓN !!
     // Ignoramos errores para que Azure pueda desplegar aunque el seed.ts tenga fallos
@@ -8,6 +9,7 @@ typescript: {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  output: 'standalone',
 
 };
 
