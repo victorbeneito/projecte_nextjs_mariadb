@@ -21,9 +21,9 @@ export default async function ProductoPage({ params }: PageProps) {
   const productoRaw = await prisma.producto.findUnique({
     where: { id: idNumero },
     include: {
-      categoria: true,
-      variantes: true,
-      marca: true
+      Categoria: true,
+      Variante: true,
+      Marca: true
     }
   });
 

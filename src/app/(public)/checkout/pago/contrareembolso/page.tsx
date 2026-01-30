@@ -45,7 +45,7 @@ export default function PagoContrareembolso() {
 
       <button
         onClick={handleConfirm}
-        className="bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition"
+        className="bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition dark:bg-gray-700 dark:hover:bg-gray-600"
       >
         Confirmar pedido →
       </button>

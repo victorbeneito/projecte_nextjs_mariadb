@@ -19,7 +19,7 @@ export default function ResumenPage() {
   const [metodoEnvio, setMetodoEnvio] = useState<{ metodo: string; coste: number } | null>(null);
   const [metodoPago, setMetodoPago] = useState<{ metodo: string; recargo: number } | null>(null);
   const [codigo, setCodigo] = useState("");
-  const [descuento, setDescuento] = useState(0);
+  const [descuento, setDescuento] = useState<number>(0); // Aseguramos que sea number
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
   useEffect(() => {
@@ -36,92 +36,163 @@ export default function ResumenPage() {
     setCarrito(cartItems);
 
     const sub = cartItems.reduce(
-      (acc, item) => acc + (item.precioFinal ?? item.precio) * item.cantidad,
+      (acc, item) => acc + (Number(item.precioFinal ?? item.precio) * item.cantidad),
       0
     );
     setSubtotal(sub);
 
-    const envio = JSON.parse(localStorage.getItem("checkout_envio") || "null");
-    const pago = JSON.parse(localStorage.getItem("checkout_pago") || "null");
+    try {
+      const envio = JSON.parse(localStorage.getItem("checkout_envio") || "null");
+      const pago = JSON.parse(localStorage.getItem("checkout_pago") || "null");
 
-    if (!envio || !pago) {
+      if (!envio || !pago) {
+        router.push("/checkout/envio");
+        return;
+      }
+
+      setMetodoEnvio(envio);
+      setMetodoPago(pago);
+    } catch (error) {
+      console.error("Error parsing localStorage:", error);
       router.push("/checkout/envio");
-      return;
     }
-
-    setMetodoEnvio(envio);
-    setMetodoPago(pago);
   }, [cliente, loading, router]);
 
-  const aplicarCupon = async () => {
-    try {
-      if (!token) {
-        toast.error("Debes iniciar sesión para aplicar un cupón");
-        return;
-      }
+const aplicarCupon = async () => {
+  try {
+    if (!token || !codigo.trim()) {
+      toast.error("Sesión o código inválido");
+      return;
+    }
 
-      const res = await fetchWithAuth("/api/coupons/validate", token, {
-        method: "POST",
-        body: JSON.stringify({ codigo }),
-      });
+    console.log("🔍 Enviando cupón:", { codigo: codigo.trim() });
 
-      if (res.valid) {
-        setDescuento(res.descuento);
-        toast.success(`Cupón válido: -${res.descuento}%`);
+    const res = await fetchWithAuth("/api/cupones/validate", token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codigo: codigo.trim() }),
+    });
+
+    console.log("📦 Respuesta completa:", res);
+
+    // ✅ FIX: Usa tus campos REALES (descuentoCalculado o valor)
+    if (res?.valid === true) {
+      const descuentoValor = Number(res.descuentoCalculado || res.valor || 0);
+      
+      if (!isNaN(descuentoValor) && descuentoValor > 0) {
+        setDescuento(descuentoValor);
+        toast.success(`✅ Cupón VIVA2026: -${descuentoValor}€`);
       } else {
-        setDescuento(0);
-        toast.error(res.error || "Cupón no válido");
+        toast.error("Descuento inválido");
       }
-    } catch {
-      toast.error("Error validando el cupón");
+    } else {
+      setDescuento(0);
+      toast.error(res?.error || "Cupón inválido");
+    }
+  } catch (error) {
+    console.error("❌ Error:", error);
+    toast.error("Error de conexión");
+  }
+};
+
+const confirmarPedido = async () => {
+  if (!aceptaTerminos) {
+    toast.error("Debes aceptar los términos del servicio antes de continuar");
+    return;
+  }
+
+  if (!cliente || !token) {
+    toast.error("Debes iniciar sesión antes de continuar.");
+    return;
+  }
+
+  if (!metodoEnvio || !metodoPago) {
+    toast.error("Faltan datos de envío o pago");
+    return;
+  }
+
+  // Cálculos seguros
+  const envioCoste = Number(metodoEnvio.coste) || 0;
+  const pagoRecargo = Number(metodoPago.recargo) || 0;
+  const descuentoPorcentaje = Number(descuento) || 0;
+  const descuentoImporte = descuentoPorcentaje > 0 ? descuentoPorcentaje : (subtotal * descuentoPorcentaje) / 100; // FIJO o %
+  const totalFinal = subtotal + envioCoste + pagoRecargo - descuentoImporte;
+
+  if (totalFinal <= 0 || isNaN(totalFinal)) {
+    toast.error("Total inválido");
+    return;
+  }
+
+  const body = {
+    items: carrito.map(item => ({
+      id: item.id,
+      nombre: item.nombre,
+      precio: Number(item.precioFinal ?? item.precio),
+      cantidad: item.cantidad
+    })),
+    metodoEnvio: {
+      metodo: metodoEnvio.metodo,
+      coste: envioCoste
+    },
+    metodoPago: {
+      metodo: metodoPago.metodo,
+      recargo: pagoRecargo
+    },
+    subtotal,
+    descuento: descuentoPorcentaje,
+    descuentoImporte,
+    totalFinal,
+    cuponCodigo: codigo.trim() || null,
+    cliente: {
+      id: cliente.id,
+      nombre: cliente.nombre || "Cliente",
+      email: cliente.email || "no@email.com",
+      telefono: cliente.telefono || null,
+      direccion: cliente.direccion || null,
+      ciudad: cliente.ciudad || null,
+      cp: cliente.codigoPostal || null
     }
   };
 
-  const confirmarPedido = async () => {
-    if (!aceptaTerminos) {
-      toast.error("Debes aceptar los términos del servicio antes de continuar");
+  try {
+    console.log("Enviando al backend:", JSON.stringify(body, null, 2));
+    
+    const res = await fetchWithAuth("/api/pedidos/new", token, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    console.log("✅ Respuesta backend:", res);
+
+    // ✅ FIX: Detecta tu formato REAL {ok: true, pedido: {...}}
+    if (res.error || !res.ok || !res.pedido) {
+      toast.error(res.error || res.message || "Error del servidor");
       return;
     }
 
-    if (!cliente || !token) {
-      toast.error("Debes iniciar sesión antes de continuar.");
-      return;
-    }
+    // ✅ ÉXITO
+    toast.success(`¡Pedido ${res.pedido.numeroPedido} creado correctamente! ✅`);
+    clearCart();
+    localStorage.removeItem("checkout_envio");
+    localStorage.removeItem("checkout_pago");
+    setPedidoConfirmado(true);
+    
+    // Redirigir a detalles del pedido
+    setTimeout(() => {
+      router.push(`/`);
+    }, 2500);
+    
+  } catch (err: any) {
+    console.error("❌ Error:", err);
+    toast.error(err.message || "Error de conexión. Revisa logs.");
+  }
+};
 
-    const envioCoste = metodoEnvio?.coste || 0;
-    const pagoRecargo = metodoPago?.recargo || 0;
-    const descuentoImporte = (subtotal * descuento) / 100;
-    const totalFinal = subtotal + envioCoste + pagoRecargo - descuentoImporte;
 
-    const body = {
-      carrito,
-      metodoEnvio,
-      metodoPago,
-      descuento,
-      totalFinal,
-      cuponCodigo: codigo,
-      cliente,
-    };
 
-    try {
-      const res = await fetchWithAuth("/api/pedidos/new", token, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-
-      if (res.error) {
-        toast.error(res.error || "Error al crear el pedido");
-        return;
-      }
-
-      toast.success("Pedido creado correctamente ✅");
-      clearCart();
-      setPedidoConfirmado(true);
-    } catch (err) {
-      console.error("❌ Error al crear pedido:", err);
-      toast.error("No se pudo crear el pedido. Inténtalo de nuevo.");
-    }
-  };
 
   if (loading) return <p className="text-center py-10 dark:text-white">Cargando...</p>;
   if (!cliente) return null;
@@ -137,16 +208,18 @@ export default function ResumenPage() {
         </p>
         <Link
           href="/"
-          className="bg-primary text-white px-4 py-2 rounded hover:bg-primaryHover"
+          className="bg-primary text-white px-4 py-2 rounded hover:bg-primaryHover dark:bg-gray-700 dark:hover:bg-gray-600"
         >
           Volver al inicio
         </Link>
       </div>
     );
 
-  const envioCoste = metodoEnvio?.coste || 0;
-  const pagoRecargo = metodoPago?.recargo || 0;
-  const descuentoImporte = (subtotal * descuento) / 100;
+  // Cálculos para mostrar (reutilizando la misma lógica segura)
+  const envioCoste = Number(metodoEnvio?.coste) || 0;
+  const pagoRecargo = Number(metodoPago?.recargo) || 0;
+  const descuentoPorcentaje = Number(descuento) || 0;
+  const descuentoImporte = (subtotal * descuentoPorcentaje) / 100;
   const totalFinal = subtotal + envioCoste + pagoRecargo - descuentoImporte;
 
   return (
@@ -168,11 +241,11 @@ export default function ResumenPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             Método:{" "}
             <span className="font-medium text-gray-700 dark:text-gray-200">
-            {metodoEnvio?.metodo === "ontime"
-              ? "Mensajería Ontime"
-              : "Recogida en tienda"}{" "}
+              {metodoEnvio?.metodo === "ontime"
+                ? "Mensajería Ontime"
+                : "Recogida en tienda"}{" "}
             </span>
-            ({envioCoste.toFixed(2)} €)
+            ({envioCoste.toFixed(2)} €)
           </p>
         </div>
       </div>
@@ -182,11 +255,11 @@ export default function ResumenPage() {
         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Método de pago</h2>
         <p className="text-gray-800 dark:text-gray-200 capitalize">{metodoPago?.metodo || "No seleccionado"}</p>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Recargo: {pagoRecargo.toFixed(2)} €
+          Recargo: {pagoRecargo.toFixed(2)} €
         </p>
       </div>
 
-      {/* Carrito */}
+      {/* Carrito y Totales */}
       <div className="bg-white dark:bg-darkNavBg p-6 rounded-lg shadow mb-6 transition-colors duration-300">
         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Productos</h2>
         {Array.isArray(carrito) && carrito.length > 0 ? (
@@ -197,7 +270,7 @@ export default function ResumenPage() {
                   {item.nombre} × {item.cantidad}
                 </span>
                 <span className="font-medium text-gray-900 dark:text-white">
-                  {((item.precioFinal ?? item.precio) * item.cantidad).toFixed(2)} €
+                  {((Number(item.precioFinal ?? item.precio)) * item.cantidad).toFixed(2)} €
                 </span>
               </div>
             ))}
@@ -209,31 +282,31 @@ export default function ResumenPage() {
         <hr className="my-4 dark:border-gray-700" />
         
         <div className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
-            <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>{subtotal.toFixed(2)} €</span>
+          <div className="flex justify-between">
+            <span>Subtotal:</span>
+            <span>{subtotal.toFixed(2)} €</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Envío:</span>
+            <span>{envioCoste.toFixed(2)} €</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Recargo pago:</span>
+            <span>{pagoRecargo.toFixed(2)} €</span>
+          </div>
+          {descuentoPorcentaje > 0 && (
+            <div className="flex justify-between text-green-600 dark:text-green-400 font-medium">
+              <span>Descuento cupón (-{descuentoPorcentaje}%):</span>
+              <span>-{descuentoImporte.toFixed(2)} €</span>
             </div>
-            <div className="flex justify-between">
-                <span>Envío:</span>
-                <span>{envioCoste.toFixed(2)} €</span>
-            </div>
-            <div className="flex justify-between">
-                <span>Recargo pago:</span>
-                <span>{pagoRecargo.toFixed(2)} €</span>
-            </div>
-            {descuento > 0 && (
-            <div className="flex justify-between text-green-600 dark:text-green-400">
-                <span>Descuento (-{descuento}%):</span>
-                <span>-{descuentoImporte.toFixed(2)} €</span>
-            </div>
-            )}
+          )}
         </div>
 
-        <div className="flex justify-between items-center mt-4 pt-4 border-t dark:border-gray-700">
-            <span className="text-lg font-semibold text-gray-900 dark:text-white">Total final:</span>
-            <span className="text-2xl font-bold text-primary">
-             {totalFinal.toFixed(2)} €
-            </span>
+        <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-700">
+          <span className="text-xl font-semibold text-gray-900 dark:text-white">Total final:</span>
+          <span className="text-3xl font-bold text-primary">
+            {isNaN(totalFinal) ? "0.00" : totalFinal.toFixed(2)} €
+          </span>
         </div>
       </div>
 
@@ -246,20 +319,21 @@ export default function ResumenPage() {
           <input
             type="text"
             value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
+            onChange={(e) => setCodigo(e.target.value.toUpperCase())}
             placeholder="Introduce tu cupón"
-            className="border dark:border-gray-600 rounded-md p-2 flex-1 text-sm bg-gray-50 dark:bg-darkBg text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+            className="border dark:border-gray-600 rounded-md p-2 flex-1 text-sm bg-gray-50 dark:bg-darkBg text-gray-900 dark:text-white focus:outline-none focus:border-primary uppercase"
           />
           <button
             onClick={aplicarCupon}
-            className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 text-sm"
+            disabled={!codigo.trim()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed dark:bg-gray-700 dark:hover:bg-gray-600"
           >
             Aplicar
           </button>
         </div>
-        {descuento > 0 && (
-          <p className="text-green-600 dark:text-green-400 text-sm mt-2">
-            Cupón aplicado: -{descuento}% de descuento
+        {descuentoPorcentaje > 0 && (
+          <p className="text-green-600 dark:text-green-400 text-sm mt-2 font-medium bg-green-50 dark:bg-green-900/20 p-2 rounded">
+            ✅ Cupón aplicado: -{descuentoPorcentaje}% de descuento ({descuentoImporte.toFixed(2)} €)
           </p>
         )}
       </div>
@@ -271,14 +345,14 @@ export default function ResumenPage() {
           id="terminos"
           checked={aceptaTerminos}
           onChange={(e) => setAceptaTerminos(e.target.checked)}
-          className="mr-2 h-4 w-4"
+          className="mr-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
         />
         <label htmlFor="terminos" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
           Acepto los{" "}
           <Link
             href="/terminos"
             target="_blank"
-            className="text-primary hover:underline"
+            className="text-primary hover:underline font-medium"
           >
             términos y condiciones del servicio
           </Link>
@@ -288,11 +362,311 @@ export default function ResumenPage() {
 
       <button
         onClick={confirmarPedido}
-        disabled={!aceptaTerminos}
-        className="w-full bg-primary text-white font-semibold py-3 rounded hover:bg-primaryHover transition disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={!aceptaTerminos || !metodoEnvio || !metodoPago || carrito.length === 0}
+        className="w-full bg-primary text-white font-bold py-4 rounded-lg hover:bg-primaryHover transition-all duration-200 text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:hover:bg-gray-600"
       >
-        Confirmar compra
+        Confirmar compra - {totalFinal.toFixed(2)} €
       </button>
     </div>
   );
 }
+
+
+// "use client";
+
+// import { useEffect, useState } from "react";
+// import { useRouter } from "next/navigation";
+// import Link from "next/link";
+// import toast from "react-hot-toast";
+// import { useClienteAuth } from "@/context/ClienteAuthContext";
+// import { getCart, clearCart, CartItem } from "@/lib/cartService";
+// import { fetchWithAuth } from "@/utils/fetchWithAuth";
+
+// export default function ResumenPage() {
+//   const router = useRouter();
+//   const { cliente, token, loading } = useClienteAuth();
+
+//   const [carrito, setCarrito] = useState<CartItem[]>([]);
+//   const [subtotal, setSubtotal] = useState(0);
+//   const [pedidoConfirmado, setPedidoConfirmado] = useState(false);
+
+//   const [metodoEnvio, setMetodoEnvio] = useState<{ metodo: string; coste: number } | null>(null);
+//   const [metodoPago, setMetodoPago] = useState<{ metodo: string; recargo: number } | null>(null);
+//   const [codigo, setCodigo] = useState("");
+//   const [descuento, setDescuento] = useState(0);
+//   const [aceptaTerminos, setAceptaTerminos] = useState(false);
+
+//   useEffect(() => {
+//     if (!loading && !cliente) {
+//       router.push("/auth?redirect=/checkout/resumen");
+//       return;
+//     }
+
+//     const cartItems = getCart();
+//     if (!cartItems || cartItems.length === 0) {
+//       router.push("/carrito");
+//       return;
+//     }
+//     setCarrito(cartItems);
+
+//     const sub = cartItems.reduce(
+//       (acc, item) => acc + (item.precioFinal ?? item.precio) * item.cantidad,
+//       0
+//     );
+//     setSubtotal(sub);
+
+//     const envio = JSON.parse(localStorage.getItem("checkout_envio") || "null");
+//     const pago = JSON.parse(localStorage.getItem("checkout_pago") || "null");
+
+//     if (!envio || !pago) {
+//       router.push("/checkout/envio");
+//       return;
+//     }
+
+//     setMetodoEnvio(envio);
+//     setMetodoPago(pago);
+//   }, [cliente, loading, router]);
+
+//   const aplicarCupon = async () => {
+//     try {
+//       if (!token) {
+//         toast.error("Debes iniciar sesión para aplicar un cupón");
+//         return;
+//       }
+
+//       const res = await fetchWithAuth("/api/cupones/validate", token, {
+//         method: "POST",
+//         body: JSON.stringify({ codigo }),
+//       });
+
+//       if (res.valid) {
+//         setDescuento(res.descuento);
+//         toast.success(`Cupón válido: -${res.descuento}%`);
+//       } else {
+//         setDescuento(0);
+//         toast.error(res.error || "Cupón no válido");
+//       }
+//     } catch {
+//       toast.error("Error validando el cupón");
+//     }
+//   };
+
+//   const confirmarPedido = async () => {
+//     if (!aceptaTerminos) {
+//       toast.error("Debes aceptar los términos del servicio antes de continuar");
+//       return;
+//     }
+
+//     if (!cliente || !token) {
+//       toast.error("Debes iniciar sesión antes de continuar.");
+//       return;
+//     }
+
+//     const envioCoste = metodoEnvio?.coste || 0;
+//     const pagoRecargo = metodoPago?.recargo || 0;
+//     const descuentoImporte = (subtotal * descuento) / 100;
+//     const totalFinal = subtotal + envioCoste + pagoRecargo - descuentoImporte;
+
+//     const body = {
+//       carrito,
+//       metodoEnvio,
+//       metodoPago,
+//       descuento,
+//       totalFinal,
+//       cuponCodigo: codigo,
+//       cliente,
+//     };
+
+//     try {
+//       const res = await fetchWithAuth("/api/pedidos/new", token, {
+//         method: "POST",
+//         body: JSON.stringify(body),
+//       });
+
+//       if (res.error) {
+//         toast.error(res.error || "Error al crear el pedido");
+//         return;
+//       }
+
+//       toast.success("Pedido creado correctamente ✅");
+//       clearCart();
+//       setPedidoConfirmado(true);
+//     } catch (err) {
+//       console.error("❌ Error al crear pedido:", err);
+//       toast.error("No se pudo crear el pedido. Inténtalo de nuevo.");
+//     }
+//   };
+
+//   if (loading) return <p className="text-center py-10 dark:text-white">Cargando...</p>;
+//   if (!cliente) return null;
+
+//   if (pedidoConfirmado)
+//     return (
+//       <div className="max-w-3xl mx-auto py-16 text-center">
+//         <h1 className="text-3xl font-bold text-green-600 mb-4">
+//           🎉 ¡Pedido confirmado!
+//         </h1>
+//         <p className="text-gray-600 dark:text-gray-300 mb-8">
+//           Gracias por tu compra. Te enviaremos un correo de confirmación.
+//         </p>
+//         <Link
+//           href="/"
+//           className="bg-primary text-white px-4 py-2 rounded hover:bg-primaryHover dark:bg-gray-700 dark:hover:bg-gray-600"
+//         >
+//           Volver al inicio
+//         </Link>
+//       </div>
+//     );
+
+//   const envioCoste = metodoEnvio?.coste || 0;
+//   const pagoRecargo = metodoPago?.recargo || 0;
+//   const descuentoImporte = (subtotal * descuento) / 100;
+//   const totalFinal = subtotal + envioCoste + pagoRecargo - descuentoImporte;
+
+//   return (
+//     <div className="max-w-5xl mx-auto px-4 py-10">
+//       <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">
+//         Resumen final del pedido 🧾
+//       </h1>
+
+//       {/* Datos de envío */}
+//       <div className="bg-white dark:bg-darkNavBg p-6 rounded-lg shadow mb-6 transition-colors duration-300">
+//         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Datos de envío</h2>
+//         <div className="text-gray-800 dark:text-gray-300 space-y-1">
+//           <p>
+//             {cliente.nombre} {cliente.apellidos}
+//           </p>
+//           <p>
+//             {cliente.direccion}, {cliente.codigoPostal} {cliente.ciudad}
+//           </p>
+//           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+//             Método:{" "}
+//             <span className="font-medium text-gray-700 dark:text-gray-200">
+//             {metodoEnvio?.metodo === "ontime"
+//               ? "Mensajería Ontime"
+//               : "Recogida en tienda"}{" "}
+//             </span>
+//             ({envioCoste.toFixed(2)} €)
+//           </p>
+//         </div>
+//       </div>
+
+//       {/* Método de pago */}
+//       <div className="bg-white dark:bg-darkNavBg p-6 rounded-lg shadow mb-6 transition-colors duration-300">
+//         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Método de pago</h2>
+//         <p className="text-gray-800 dark:text-gray-200 capitalize">{metodoPago?.metodo || "No seleccionado"}</p>
+//         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+//           Recargo: {pagoRecargo.toFixed(2)} €
+//         </p>
+//       </div>
+
+//       {/* Carrito */}
+//       <div className="bg-white dark:bg-darkNavBg p-6 rounded-lg shadow mb-6 transition-colors duration-300">
+//         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Productos</h2>
+//         {Array.isArray(carrito) && carrito.length > 0 ? (
+//           <div className="space-y-3">
+//             {carrito.map((item) => (
+//               <div key={item.id} className="flex justify-between text-sm text-gray-700 dark:text-gray-300 border-b dark:border-gray-700 pb-2 last:border-0">
+//                 <span>
+//                   {item.nombre} × {item.cantidad}
+//                 </span>
+//                 <span className="font-medium text-gray-900 dark:text-white">
+//                   {((item.precioFinal ?? item.precio) * item.cantidad).toFixed(2)} €
+//                 </span>
+//               </div>
+//             ))}
+//           </div>
+//         ) : (
+//           <p className="text-sm text-gray-500 dark:text-gray-400">Tu carrito está vacío.</p>
+//         )}
+        
+//         <hr className="my-4 dark:border-gray-700" />
+        
+//         <div className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+//             <div className="flex justify-between">
+//                 <span>Subtotal:</span>
+//                 <span>{subtotal.toFixed(2)} €</span>
+//             </div>
+//             <div className="flex justify-between">
+//                 <span>Envío:</span>
+//                 <span>{envioCoste.toFixed(2)} €</span>
+//             </div>
+//             <div className="flex justify-between">
+//                 <span>Recargo pago:</span>
+//                 <span>{pagoRecargo.toFixed(2)} €</span>
+//             </div>
+//             {descuento > 0 && (
+//             <div className="flex justify-between text-green-600 dark:text-green-400">
+//                 <span>Descuento (-{descuento}%):</span>
+//                 <span>-{descuentoImporte.toFixed(2)} €</span>
+//             </div>
+//             )}
+//         </div>
+
+//         <div className="flex justify-between items-center mt-4 pt-4 border-t dark:border-gray-700">
+//             <span className="text-lg font-semibold text-gray-900 dark:text-white">Total final:</span>
+//             <span className="text-2xl font-bold text-primary">
+//              {totalFinal.toFixed(2)} €
+//             </span>
+//         </div>
+//       </div>
+
+//       {/* Cupón */}
+//       <div className="bg-white dark:bg-darkNavBg p-6 rounded-lg shadow mb-6 transition-colors duration-300">
+//         <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+//           ¿Tienes un cupón de descuento?
+//         </label>
+//         <div className="flex gap-2">
+//           <input
+//             type="text"
+//             value={codigo}
+//             onChange={(e) => setCodigo(e.target.value)}
+//             placeholder="Introduce tu cupón"
+//             className="border dark:border-gray-600 rounded-md p-2 flex-1 text-sm bg-gray-50 dark:bg-darkBg text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+//           />
+//           <button
+//             onClick={aplicarCupon}
+//             className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 text-sm dark:bg-gray-700 dark:hover:bg-gray-600"
+//           >
+//             Aplicar
+//           </button>
+//         </div>
+//         {descuento > 0 && (
+//           <p className="text-green-600 dark:text-green-400 text-sm mt-2 dark:bg-gray-700 dark:hover:bg-gray-600">
+//             Cupón aplicado: -{descuento}% de descuento
+//           </p>
+//         )}
+//       </div>
+
+//       {/* Términos y botón */}
+//       <div className="flex items-center mb-6">
+//         <input
+//           type="checkbox"
+//           id="terminos"
+//           checked={aceptaTerminos}
+//           onChange={(e) => setAceptaTerminos(e.target.checked)}
+//           className="mr-2 h-4 w-4"
+//         />
+//         <label htmlFor="terminos" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+//           Acepto los{" "}
+//           <Link
+//             href="/terminos"
+//             target="_blank"
+//             className="text-primary hover:underline"
+//           >
+//             términos y condiciones del servicio
+//           </Link>
+//           .
+//         </label>
+//       </div>
+
+//       <button
+//         onClick={confirmarPedido}
+//         disabled={!aceptaTerminos}
+//         className="w-full bg-primary text-white font-semibold py-3 rounded hover:bg-primaryHover transition disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:hover:bg-gray-600"
+//       >
+//         Confirmar compra
+//       </button>
+//     </div>
+//   );
+// }

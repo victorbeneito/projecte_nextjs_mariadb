@@ -23,7 +23,7 @@ export default function CouponsPage() {
     if (!token) return;
     const loadCoupons = async () => {
       try {
-        const res = await fetchWithAuth("/api/coupons", token);
+        const res = await fetchWithAuth("/api/cupones", token);
         setCupones(res.coupons || []);
       } catch (error) {
         console.error(error);

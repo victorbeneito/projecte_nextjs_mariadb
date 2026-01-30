@@ -475,7 +475,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               <div className="md:col-span-2 flex justify-end gap-4 mt-4">
                 <button
                   type="button"
-                  className="px-4 py-2 rounded-[8px] border border-[#d3c7b4] text-[#555555] bg-primaryHover hover:bg-fondoCasilla transition-colors"
+                  className="px-4 py-2 rounded-[8px] border border-[#d3c7b4] text-[#555555] bg-primaryHover hover:bg-fondoCasilla transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
                   onClick={() => router.push("/account")}
                 >
                   Omitir por ahora
@@ -483,7 +483,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="px-6 py-2 rounded-[8px] bg-primary text-white font-semibold tracking-wide hover:bg-primaryHover disabled:opacity-60 transition-colors"
+                  className="px-6 py-2 rounded-[8px] bg-primary text-white font-semibold tracking-wide hover:bg-primaryHover disabled:opacity-60 transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
                 >
                   {guardando ? "Guardando..." : "Guardar dirección"}
                 </button>

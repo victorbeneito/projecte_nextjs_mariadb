@@ -4,18 +4,19 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+// 1. Añadimos 'cupones' al tipo de estadísticas
 type Stats = {
   productos?: number;
   categorias?: number;
   marcas?: number;
   pedidos?: number;
   clientes?: number;
+  cupones?: number; // <--- NUEVO
 };
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({});
 
-  // Lógica opcional para obtener recuentos reales desde la API
   useEffect(() => {
     async function fetchStats() {
       try {
@@ -31,6 +32,7 @@ export default function AdminDashboard() {
     fetchStats();
   }, []);
 
+  // 2. Añadimos la sección de Cupones al array
   const sections = [
     {
       title: "Productos",
@@ -61,6 +63,13 @@ export default function AdminDashboard() {
       href: "/admin/clientes",
       count: stats.clientes,
       color: "bg-secondary hover:bg-hover",
+    },
+    // --- NUEVA SECCIÓN ---
+    {
+      title: "Cupones",
+      href: "/admin/cupones",
+      count: stats.cupones,
+      color: "bg-purple-400 hover:bg-purple-700", // Color morado para diferenciar
     },
   ];
 

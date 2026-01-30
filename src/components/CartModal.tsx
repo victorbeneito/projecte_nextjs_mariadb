@@ -29,7 +29,7 @@ export default function CartModal({ isOpen, onClose, productName }: CartModalPro
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm text-center"
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-sm text-center"
         onClick={(e) => e.stopPropagation()} // evita cerrar al hacer clic dentro
       >
         <h2 className="text-xl font-semibold mb-3">
@@ -40,18 +40,18 @@ export default function CartModal({ isOpen, onClose, productName }: CartModalPro
           )}
         </h2>
 
-        <p className="text-gray-600 mb-6">¿Qué deseas hacer a continuación?</p>
+        <p className="dark:text-gray-200 mb-6">¿Qué deseas hacer a continuación?</p>
 
         <div className="flex justify-center gap-4">
           <button
             onClick={handleContinueShopping}
-            className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+            className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600"
           >
             Seguir comprando
           </button>
           <button
             onClick={handleGoToCart}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-gray-700 dark:hover:bg-gray-600"
           >
             Finalizar compra
           </button>

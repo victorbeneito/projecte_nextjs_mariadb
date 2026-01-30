@@ -132,13 +132,13 @@ export default function CarritoPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => updateQuantity(item.id, item.cantidad - 1)}
-                className="px-2 py-1 bg-gray-200 dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600 rounded"
+                className="px-2 py-1 bg-gray-200 dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600 rounded dark:bg-gray-700 dark:hover:bg-gray-600"
                 disabled={item.cantidad <= 1}
               >
                 –
               </button>
 
-              <span className="font-medium w-6 text-center dark:text-white">
+              <span className="font-medium w-6 text-center dark:text-white dark:bg-gray-700 dark:hover:bg-gray-600">
                 {item.cantidad}
               </span>
 
@@ -179,7 +179,7 @@ export default function CarritoPage() {
 
           <button
             onClick={handleFinalizarCompra}
-            className="bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition"
+            className="bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition dark:bg-gray-700 dark:hover:bg-gray-600"
           >
             Finalizar compra →
           </button>

@@ -103,12 +103,12 @@ export default function CategoryProductsModal({ categories }: Props) {
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-auto shadow-lg">
             <button
               onClick={closeModal}
-              className="text-3xl font-bold mb-4 float-right hover:text-red-600"
+              className="text-3xl font-bold mb-4 float-right hover:text-red-600 dark:bg-gray-700 dark:hover:bg-gray-600"
               aria-label="Cerrar ventana"
             >
               &times;
             </button>
-            <h2 className="text-2xl font-bold mb-4">
+            <h2 className="text-2xl font-bold mb-4 dark:bg-gray-700 dark:hover:bg-gray-600">
               Productos - {categoriaNombre}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

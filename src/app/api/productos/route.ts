@@ -45,11 +45,11 @@ export async function GET(req: NextRequest) {
 
     const productos = await prisma.producto.findMany({
       where: whereClause,
-      include: {
-        marca: true,     
-        categoria: true, 
-        variantes: true  
-      },
+      // include: {
+      //   marca: true,     
+      //   categoria: true, 
+      //   variantes: true  
+      // },
       orderBy: {
         createdAt: 'desc' // Mostrar los más nuevos primero
       }
@@ -130,8 +130,8 @@ export async function POST(req: NextRequest) {
         }
       },
       include: {
-        marca: true,
-        categoria: true,
+        Marca: true,
+        Categoria: true,
         variantes: true
       }
     });

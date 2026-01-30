@@ -52,9 +52,11 @@ export default function CheckoutPage() {
         toast.error("Debes iniciar sesión para aplicar un cupón");
         return;
       }
-      const res = await fetchWithAuth("/api/coupons/validate", token, {
+      console.log('🧾 Enviando cupón:', { codigo, subtotal: total }); // ✅
+
+      const res = await fetchWithAuth("/api/cupones/validate", token, {
         method: "POST",
-        body: JSON.stringify({ codigo }),
+        body: JSON.stringify({ codigo , subtotal: total }),
       });
 
       if (res.valid) {
@@ -146,7 +148,7 @@ export default function CheckoutPage() {
 
           <button
             type="submit"
-            className="bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition w-full sm:w-auto"
+            className="bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition w-full sm:w-auto dark:bg-gray-700 dark:hover:bg-gray-600"
           >
             Confirmar pedido
           </button>
@@ -199,7 +201,7 @@ export default function CheckoutPage() {
             <button
               type="button"
               onClick={aplicarCupon}
-              className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 text-sm"
+              className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 text-sm dark:bg-gray-700 dark:hover:bg-gray-600"
             >
               Aplicar
             </button>
