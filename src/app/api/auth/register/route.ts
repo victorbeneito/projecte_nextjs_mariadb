@@ -1,56 +1,42 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken"; // 👈 IMPORTANTE: Añadir esto
+import jwt from "jsonwebtoken"; // 👈 NECESARIO PARA GENERAR EL TOKEN
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const body = await req.json();
-    
-    const { 
-      nombre, 
-      apellidos, 
-      email, 
-      password, 
-      telefono, 
-      direccion, 
-      ciudad, 
-      codigoPostal, 
-      cp, 
-      provincia, 
-      pais 
-    } = body;
+    const { nombre, apellidos, email, password, telefono, direccion, ciudad, cp, codigoPostal, provincia, pais } = body;
 
-    // 1. Validaciones
+    // 1. Validar campos
     if (!email || !password || !nombre) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: "Faltan campos obligatorios" 
-      }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, message: "Faltan campos obligatorios" },
+        { status: 400 }
+      );
     }
 
-    // 2. Comprobar duplicados
-    const existe = await prisma.cliente.findUnique({
-      where: { email: email.toLowerCase() },
+    // 2. Verificar duplicados
+    const usuarioExistente = await prisma.cliente.findUnique({
+      where: { email },
     });
 
-    if (existe) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: "Este correo ya está registrado." 
-      }, { status: 400 });
+    if (usuarioExistente) {
+      return NextResponse.json(
+        { ok: false, message: "El correo ya está registrado" },
+        { status: 400 }
+      );
     }
 
-    // 3. Encriptar password
+    // 3. Crear usuario
     const hashedPassword = await bcrypt.hash(password, 10);
     const cpFinal = codigoPostal || cp || "";
 
-    // 4. CREAR CLIENTE
     const nuevoCliente = await prisma.cliente.create({
       data: {
         nombre,
         apellidos: apellidos || "",
-        email: email.toLowerCase(),
+        email,
         password: hashedPassword,
         telefono: telefono || null,
         direccion: direccion || null,
@@ -59,38 +45,41 @@ export async function POST(req: NextRequest) {
         provincia: provincia || null,
         pais: pais || null,
         role: "client",
+        updatedAt: new Date()
       },
     });
 
-    // 5. 🔥 GENERAR TOKEN (ESTO ES LO QUE FALTABA) 🔥
-    const secret = process.env.SECRETO_JWT_CLIENTE || "clave_secreta_cliente_2026";
-    
+    const { password: _, ...clienteSinPassword } = nuevoCliente;
+
+    // 4. 🔥 GENERAR TOKEN (ESTO ES LO QUE FALTABA) 🔥
+    // Usamos la misma clave secreta que en el Login. 
+    // Si tienes una variable de entorno JWT_SECRET, la usará.
     const token = jwt.sign(
       { 
         id: nuevoCliente.id, 
         email: nuevoCliente.email, 
-        rol: "client",
-        nombre: nuevoCliente.nombre 
-      }, 
-      secret, 
+        role: nuevoCliente.role 
+      },
+      process.env.JWT_SECRET || "secreto_super_seguro_tienda", // Fallback por si no hay .env
       { expiresIn: "30d" }
     );
 
-    // 6. Respuesta con Token
-    const { password: _, ...clienteSinPass } = nuevoCliente;
-
-    return NextResponse.json({ 
-      ok: true, 
-      message: "Registro exitoso",
-      cliente: clienteSinPass,
-      token: token // 👈 ¡Ahora sí enviamos el token!
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        ok: true,
+        message: "Usuario registrado con éxito",
+        user: clienteSinPassword,
+        cliente: clienteSinPassword,
+        token: token // 👈 AHORA SÍ ENVIAMOS EL TOKEN
+      },
+      { status: 201 }
+    );
 
   } catch (error: any) {
     console.error("❌ Error en Register:", error);
-    return NextResponse.json({ 
-      ok: false, 
-      error: "Error interno del servidor" 
-    }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, message: "Error interno", error: error.message },
+      { status: 500 }
+    );
   }
 }

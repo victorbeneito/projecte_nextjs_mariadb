@@ -1,14 +1,35 @@
+version: '3.8'
+
 services:
+  # 1. Tu Base de Datos (MariaDB)
   db:
     image: mariadb:latest
+    container_name: tienda_mariadb
     restart: always
     environment:
-      MARIADB_ROOT_PASSWORD: root
-      MARIADB_DATABASE: mitienda
-      MARIADB_USER: usuario
-      MARIADB_PASSWORD: password123
+      MYSQL_ROOT_PASSWORD: root  # Contraseña maestra
+      MYSQL_DATABASE: tienda_db  # Nombre de la BD
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: password123 # Contraseña para tu app
     ports:
       - "3306:3306"
     volumes:
-      - ./mysql_data:/var/lib/mysql
+      - mariadb_data:/var/lib/mysql
+      # Esta línea carga tu fichero SQL automáticamente si lo pones en la carpeta correcta
+      # - ./backup.sql:/docker-entrypoint-initdb.d/backup.sql 
 
+  # 2. El Gestor Visual (PhpMyAdmin)
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: tienda_phpmyadmin
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      - db
+
+volumes:
+  mariadb_data:

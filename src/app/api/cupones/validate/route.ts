@@ -49,13 +49,14 @@ export async function POST(req: Request) {
 
         // Buscamos si este usuario ya lo ha usado
         const usoCliente = await prisma.cuponUso.findUnique({
-          where: {
-            
-              cuponId: cupon.id,
-              clienteId: userId
-            
-          }
-        });
+  where: {
+    // 👇 Prisma requiere el nombre de la clave compuesta
+    cuponId_clienteId: {
+       cuponId: cupon.id,
+       clienteId: userId
+    }
+  }
+});
 
         // Verificamos límite por usuario
         if (usoCliente && usoCliente.veces >= cupon.limitePorUsuario) {

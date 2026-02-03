@@ -1,39 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
+// Helper para formatear variantes en la lista (opcional, pero útil)
+function formatearVariantesParaFrontend(variantes: any[]) {
+  if (!Array.isArray(variantes)) return [];
+  return variantes.map((v) => {
+    let tipo = "";
+    let valor = "";
+    if (v.tamano) { tipo = "TAMAÑO"; valor = v.tamano; }
+    else if (v.tirador) { tipo = "TIRADOR"; valor = v.tirador; }
+    else if (v.color) { tipo = "COLOR"; valor = v.color; }
+    return { ...v, tipo, valor, precio_extra: Number(v.precio_extra || 0) };
+  });
+}
+
 // ----------------------------------------------------------------------
 // GET /api/productos
-// Obtener lista de productos con filtros (categoría, búsqueda, etc.)
 // ----------------------------------------------------------------------
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const categoriaParam = searchParams.get("categoria"); // Puede ser "5" (ID) o "Estores" (Nombre)
+    const categoriaParam = searchParams.get("categoria");
     const q = searchParams.get("q") || searchParams.get("search");
     const destacado = searchParams.get("destacado");
 
-    // Construimos el filtro dinámicamente
+    // Construimos el filtro dinámicamente (TU LÓGICA ORIGINAL)
     const whereClause: any = {};
 
     // 1. Lógica inteligente para Categoría (ID o Nombre)
     if (categoriaParam) {
       const catId = parseInt(categoriaParam);
-
       if (!isNaN(catId)) {
-        // A) Es un número (ID de MariaDB) -> Filtramos por ID
         whereClause.categoriaId = catId;
       } else {
-        // B) Es texto -> Filtramos por la relación de nombre (Legacy support)
-        whereClause.categoria = {
-          nombre: categoriaParam
-        };
+        whereClause.Categoria = { nombre: categoriaParam };
       }
     }
 
     // 2. Filtro por Buscador (q)
     if (q) {
       whereClause.OR = [
-        { nombre: { contains: q } }, // Si usas Postgres: mode: 'insensitive'
+        { nombre: { contains: q } },
         { descripcion: { contains: q } }
       ];
     }
@@ -45,17 +54,27 @@ export async function GET(req: NextRequest) {
 
     const productos = await prisma.producto.findMany({
       where: whereClause,
-      // include: {
-      //   marca: true,     
-      //   categoria: true, 
-      //   variantes: true  
-      // },
+      include: {
+        Marca: true,      
+        Categoria: true, 
+        Variante: true  
+      },
       orderBy: {
-        createdAt: 'desc' // Mostrar los más nuevos primero
+        createdAt: 'desc'
       }
     });
 
-    return NextResponse.json({ ok: true, productos }, { status: 200 });
+    // 4. Mapeo para el Frontend
+    const productosNormalizados = productos.map((p: any) => ({
+      ...p,
+      marca: p.Marca,
+      categoria: p.Categoria,
+      // Aplicamos el formateo también aquí por si acaso
+      variantes: formatearVariantesParaFrontend(p.Variante)
+    }));
+
+    return NextResponse.json({ ok: true, productos: productosNormalizados }, { status: 200 });
+
   } catch (error: any) {
     console.error("❌ Error en GET /api/productos:", error.message);
     return NextResponse.json(
@@ -67,34 +86,21 @@ export async function GET(req: NextRequest) {
 
 // ----------------------------------------------------------------------
 // POST /api/productos
-// Crear un nuevo producto
 // ----------------------------------------------------------------------
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
     // 1. Validar si existen Marca y Categoria
-    // Buscamos por nombre exacto (asumiendo que el admin envía nombres)
-    const marca = await prisma.marca.findFirst({
-      where: { nombre: body.marca }
-    });
-
-    const categoria = await prisma.categoria.findFirst({
-      where: { nombre: body.categoria }
-    });
+    const marca = await prisma.marca.findFirst({ where: { nombre: body.marca } });
+    const categoria = await prisma.categoria.findFirst({ where: { nombre: body.categoria } });
 
     if (!marca) {
-      return NextResponse.json(
-        { ok: false, error: `Marca "${body.marca}" no encontrada` },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: false, error: `Marca "${body.marca}" no encontrada` }, { status: 400 });
     }
 
     if (!categoria) {
-      return NextResponse.json(
-        { ok: false, error: `Categoría "${body.categoria}" no encontrada` },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: false, error: `Categoría "${body.categoria}" no encontrada` }, { status: 400 });
     }
 
     // 2. Crear el producto
@@ -102,42 +108,44 @@ export async function POST(req: NextRequest) {
       data: {
         nombre: body.nombre,
         descripcion: body.descripcion || "",
-        descripcion_html: body.descripcion_html_cruda || "",
+        descripcion_html: body.descripcion_html_cruda || "", 
         precio: parseFloat(body.precio),
         stock: parseInt(body.stock),
         destacado: body.destacado || false,
-        
-        // Manejo de Imágenes (Array -> JSON)
         imagenes: body.imagenes || [], 
 
-        // Conectar Relaciones por sus IDs encontrados arriba
-        marca: {
-          connect: { id: marca.id }
-        },
-        categoria: {
-          connect: { id: categoria.id }
-        },
+        // Relaciones
+        Marca: { connect: { id: marca.id } },
+        Categoria: { connect: { id: categoria.id } },
 
-        // Crear Variantes anidadas
-        variantes: {
+        // Variantes (TRADUCTOR: Formulario -> Base de Datos)
+        Variante: {
           create: body.variantes?.map((v: any) => ({
-            color: v.color,
-            imagen: v.imagen,
-            tamano: v.tamaño, // 'tamano' sin ñ según tu schema
-            tirador: v.tirador,
-            precio_extra: parseFloat(v.precio_extra || 0)
+            tamano: v.tipo === 'TAMAÑO' ? v.valor : null,
+            tirador: v.tipo === 'TIRADOR' ? v.valor : null,
+            color: v.tipo === 'COLOR' ? v.valor : null,
+            precio_extra: parseFloat(v.precio_extra || 0),
+            imagen: v.imagen || null
           })) || []
         }
       },
       include: {
         Marca: true,
         Categoria: true,
-        variantes: true
+        Variante: true
       }
     });
 
+    // Formatear respuesta
+    const productoRespuesta = {
+        ...nuevoProducto,
+        marca: (nuevoProducto as any).Marca,
+        categoria: (nuevoProducto as any).Categoria,
+        variantes: formatearVariantesParaFrontend((nuevoProducto as any).Variante)
+    };
+
     return NextResponse.json(
-      { ok: true, producto: nuevoProducto },
+      { ok: true, producto: productoRespuesta },
       { status: 201 }
     );
 

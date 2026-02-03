@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { useRouter } from "next/navigation"; // Usamos useRouter como en Categorias
 
 interface Cupon {
   id: number;
@@ -15,17 +16,30 @@ interface Cupon {
   fecha_fin: string;
 }
 
+interface FormDataState {
+  codigo: string;
+  tipo_descuento: "porcentaje" | "fijo";
+  valor_descuento: number | "";
+  cantidad_total: number | "";
+  limite_usuario: number | "";
+  fecha_inicio: string;
+  fecha_fin: string;
+}
+
 export default function CuponesPage() {
+  const router = useRouter(); // Hook para navegación
   const [cupones, setCupones] = useState<Cupon[]>([]);
-  const [formData, setFormData] = useState({
+  
+  const [formData, setFormData] = useState<FormDataState>({
     codigo: "",
-    tipo_descuento: "porcentaje" as any,
-    valor_descuento: 0,
+    tipo_descuento: "porcentaje",
+    valor_descuento: "",
     cantidad_total: 100,
     limite_usuario: 1,
     fecha_inicio: "",
     fecha_fin: ""
   });
+  
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -37,7 +51,6 @@ export default function CuponesPage() {
     try {
       setLoading(true);
       const res = await axios.get<Cupon[]>("/api/cupones");
-      console.log("Cupones:", res.data); // DEBUG
       setCupones(res.data);
     } catch (error) {
       console.error("Error fetching cupones:", error);
@@ -47,35 +60,42 @@ export default function CuponesPage() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  try {
-    if (editingId) {
-      await axios({
-        method: 'PUT' as const,
-        url: '/api/cupones',
-        data: { id: editingId, ...formData }
-      });
-      setEditingId(null);
-    } else {
-      await axios.post("/api/cupones", formData);
-    }
-    // Limpiar...
-    setFormData({
-      codigo: "",
-      tipo_descuento: "porcentaje" as any,
-      valor_descuento: 0,
-      cantidad_total: 100,
-      limite_usuario: 1,
-      fecha_inicio: "",
-      fecha_fin: ""
-    });
-    fetchCupones();
-    alert(editingId ? "Actualizado!" : "Creado!");
-  } catch (error: any) {
-    alert(error.response?.data?.error || "Error");
-  }
-};
+    e.preventDefault();
+    
+    const datosParaEnviar = {
+      ...formData,
+      valor_descuento: Number(formData.valor_descuento) || 0,
+      cantidad_total: Number(formData.cantidad_total) || 0,
+      limite_usuario: Number(formData.limite_usuario) || 1,
+      codigo: formData.codigo.toUpperCase()
+    };
 
+    try {
+      if (editingId) {
+        await axios({
+          method: 'PUT',
+          url: '/api/cupones',
+          data: { id: editingId, ...datosParaEnviar }
+        });
+        setEditingId(null);
+      } else {
+        await axios.post("/api/cupones", datosParaEnviar);
+      }
+
+      setFormData({
+        codigo: "",
+        tipo_descuento: "porcentaje",
+        valor_descuento: "",
+        cantidad_total: 100,
+        limite_usuario: 1,
+        fecha_inicio: "",
+        fecha_fin: ""
+      });
+      fetchCupones();
+    } catch (error: any) {
+      alert(error.response?.data?.error || "Error al guardar");
+    }
+  };
 
   const handleEdit = (cupon: Cupon) => {
     setFormData({
@@ -84,32 +104,32 @@ export default function CuponesPage() {
       valor_descuento: cupon.valor_descuento,
       cantidad_total: cupon.cantidad_total,
       limite_usuario: cupon.limite_usuario,
-      fecha_inicio: cupon.fecha_inicio.slice(0, 16), // Formato datetime-local
-      fecha_fin: cupon.fecha_fin.slice(0, 16)
+      fecha_inicio: cupon.fecha_inicio ? cupon.fecha_inicio.slice(0, 16) : "",
+      fecha_fin: cupon.fecha_fin ? cupon.fecha_fin.slice(0, 16) : ""
     });
     setEditingId(cupon.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (id: number) => {
-  if (!confirm(`¿Eliminar cupón "${cupones.find(c => c.id === id)?.codigo}"?`)) return;
-  try {
-    await axios({
-      method: 'DELETE' as const,
-      url: '/api/cupones',
-      data: { id }
-    });
-    fetchCupones();
-    alert("Cupón eliminado!");
-  } catch (error) {
-    alert("Error al eliminar");
-  }
-};
+    if (!confirm(`¿Eliminar cupón?`)) return;
+    try {
+      await axios({
+        method: 'DELETE',
+        url: '/api/cupones',
+        data: { id }
+      });
+      fetchCupones();
+    } catch (error) {
+      alert("Error al eliminar");
+    }
+  };
 
   const handleClear = () => {
     setFormData({
       codigo: "",
       tipo_descuento: "porcentaje",
-      valor_descuento: 0,
+      valor_descuento: "",
       cantidad_total: 100,
       limite_usuario: 1,
       fecha_inicio: "",
@@ -118,203 +138,241 @@ export default function CuponesPage() {
     setEditingId(null);
   };
 
+  const handleNumberChange = (field: keyof FormDataState, value: string) => {
+    if (value === "") {
+      setFormData({ ...formData, [field]: "" });
+    } else {
+      setFormData({ ...formData, [field]: parseFloat(value) });
+    }
+  };
+
   return (
-    <div className="p-6 bg-white dark:bg-gray-900 min-h-screen text-gray-800 dark:text-gray-200">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Gestión de Cupones</h1>
-        <button 
-          onClick={fetchCupones}
-          disabled={loading}
-          className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50"
-        >
-          {loading ? "Cargando..." : "🔄 Refrescar"}
-        </button>
-      </div>
+    <div className="min-h-screen bg-[#F8F8F5] py-8 px-6">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* TÍTULO */}
+        <h1 className="text-4xl font-bold text-[#4A4A4A] mb-12">🎟️ Gestión de Cupones</h1>
 
-      {/* FORMULARIO */}
-      <form onSubmit={handleSubmit} className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Código Cupón *</label>
-          <input 
-            type="text" 
-            required
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
-            placeholder="EJ: VERANO2026"
-            value={formData.codigo}
-            onChange={e => setFormData({...formData, codigo: e.target.value.toUpperCase()})}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Tipo Descuento *</label>
-          <select 
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
-            value={formData.tipo_descuento}
-            onChange={e => setFormData({...formData, tipo_descuento: e.target.value as any})}
+        {/* --- BOTÓN VOLVER (ESTILO EXACTO DE CATEGORÍAS) --- */}
+        <div className="mb-12">
+          <button
+            onClick={() => router.push("/admin")}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-[#6BAEC9] to-[#A8D7E6] hover:from-[#5FA0B3] hover:to-[#91C8D9] shadow-md transition-all duration-300"
           >
-            <option value="porcentaje">Porcentaje (%)</option>
-            <option value="fijo">Importe Fijo (€)</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Valor ({formData.tipo_descuento === 'porcentaje' ? '%' : '€'}) *
-          </label>
-          <input 
-            type="number" 
-            required
-            min="0" 
-            max={formData.tipo_descuento === 'porcentaje' ? "100" : ""}
-            step={formData.tipo_descuento === 'porcentaje' ? "0.1" : "0.01"}
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
-            value={formData.valor_descuento}
-            onChange={e => setFormData({...formData, valor_descuento: Number(e.target.value)})}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Cantidad Total *</label>
-          <input 
-            type="number" 
-            required
-            min="1"
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
-            value={formData.cantidad_total}
-            onChange={e => setFormData({...formData, cantidad_total: Number(e.target.value)})}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Usos por Cliente *</label>
-          <input 
-            type="number" 
-            required
-            min="1"
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
-            value={formData.limite_usuario}
-            onChange={e => setFormData({...formData, limite_usuario: Number(e.target.value)})}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Fecha Inicio *</label>
-          <input 
-            type="datetime-local" 
-            required
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
-            value={formData.fecha_inicio}
-            onChange={e => setFormData({...formData, fecha_inicio: e.target.value})}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Fecha Fin *</label>
-          <input 
-            type="datetime-local" 
-            required
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
-            value={formData.fecha_fin}
-            onChange={e => setFormData({...formData, fecha_fin: e.target.value})}
-          />
-        </div>
-
-        <div className="md:col-span-2 mt-4 flex gap-2">
-          <button 
-            type="submit" 
-            className="flex-1 bg-blue-600 text-white py-2 rounded font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition"
-          >
-            {editingId ? `✏️ Actualizar ${formData.codigo}` : "➕ Crear Cupón"}
+            ← Volver al Panel de Administración
           </button>
-          {(formData.codigo || editingId) && (
-            <button 
-              type="button"
-              onClick={handleClear}
-              className="flex-1 bg-gray-500 text-white py-2 rounded font-medium hover:bg-gray-600 focus:ring-2 focus:ring-gray-500 transition"
-            >
-              🗑️ Limpiar
-            </button>
-          )}
         </div>
-      </form>
+        {/* -------------------------------------------------- */}
 
-      {/* TABLA */}
-      <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600">
-              <th className="p-3 font-semibold">Código</th>
-              <th className="p-3 font-semibold">Descuento</th>
-              <th className="p-3 font-semibold">Restantes</th>
-              <th className="p-3 font-semibold">Usos Total</th>
-              <th className="p-3 font-semibold">Validez</th>
-              <th className="p-3 font-semibold text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="p-8 text-center text-gray-500 animate-pulse">
-                  🔄 Cargando cupones...
-                </td>
-              </tr>
-            ) : cupones.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="p-8 text-center text-gray-500">
-                  No hay cupones creados. ¡Crea el primero!
-                </td>
-              </tr>
-            ) : (
-              cupones.map(cupon => (
-                <tr key={cupon.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition">
-                  <td className="p-3 font-bold text-blue-600 dark:text-blue-400">
-                    {cupon.codigo}
-                  </td>
-                  <td className="p-3 font-semibold">
-                    <span className="text-lg">
-                      {cupon.valor_descuento.toFixed(2)} 
-                      {cupon.tipo_descuento === 'porcentaje' ? '%' : '€'}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                      cupon.restantes === 0 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 
-                      cupon.restantes < 10 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : 
-                      'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    }`}>
-                      {cupon.restantes}
-                    </span>
-                  </td>
-                  <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                    {cupon.usos_consumidos}/{cupon.cantidad_total}
-                  </td>
-                  <td className="p-3 text-sm">
-                    {new Date(cupon.fecha_inicio).toLocaleDateString('es-ES')} -{' '}
-                    {new Date(cupon.fecha_fin).toLocaleDateString('es-ES')}
-                  </td>
-                  <td className="p-3 text-right space-x-2">
-                    <button 
-                      onClick={() => handleEdit(cupon)}
-                      className="text-yellow-500 hover:text-yellow-600 font-medium px-3 py-1 rounded hover:bg-yellow-50 dark:hover:bg-yellow-900 transition"
-                    >
-                      ✏️ Editar
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(cupon.id)}
-                      className="text-red-500 hover:text-red-600 font-medium px-3 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900 transition"
-                    >
-                      🗑️ Borrar
-                    </button>
-                  </td>
+        {/* FORMULARIO (Adaptado al estilo visual de Categorías) */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-12 border border-[#6BAEC9]/10">
+          <div className="mb-6 border-b pb-4">
+            <h2 className="text-xl font-bold text-[#4A4A4A]">
+              {editingId ? "✏️ Editar Cupón" : "➕ Nuevo Cupón"}
+            </h2>
+          </div>
+
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-[#4A4A4A] mb-2">Código Cupón *</label>
+              <input 
+                type="text" 
+                required
+                className="w-full p-4 border border-[#DDC9A3]/50 rounded-2xl text-lg focus:ring-4 focus:ring-[#6BAEC9]/20 focus:border-[#6BAEC9] transition-all uppercase"
+                placeholder="EJ: VERANO2026"
+                value={formData.codigo}
+                onChange={e => setFormData({...formData, codigo: e.target.value})}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#4A4A4A] mb-2">Tipo Descuento *</label>
+              <select 
+                className="w-full p-4 border border-[#DDC9A3]/50 rounded-2xl text-lg focus:ring-4 focus:ring-[#6BAEC9]/20 focus:border-[#6BAEC9] transition-all bg-white"
+                value={formData.tipo_descuento}
+                onChange={e => setFormData({...formData, tipo_descuento: e.target.value as any})}
+              >
+                <option value="porcentaje">Porcentaje (%)</option>
+                <option value="fijo">Importe Fijo (€)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#4A4A4A] mb-2">
+                Valor ({formData.tipo_descuento === 'porcentaje' ? '%' : '€'}) *
+              </label>
+              <input 
+                type="number" 
+                required
+                min="0" 
+                step="any"
+                placeholder="Ej: 10"
+                className="w-full p-4 border border-[#DDC9A3]/50 rounded-2xl text-lg focus:ring-4 focus:ring-[#6BAEC9]/20 focus:border-[#6BAEC9] transition-all"
+                value={formData.valor_descuento}
+                onChange={e => handleNumberChange("valor_descuento", e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#4A4A4A] mb-2">Cantidad Total *</label>
+              <input 
+                type="number" 
+                required
+                min="1"
+                className="w-full p-4 border border-[#DDC9A3]/50 rounded-2xl text-lg focus:ring-4 focus:ring-[#6BAEC9]/20 focus:border-[#6BAEC9] transition-all"
+                value={formData.cantidad_total}
+                onChange={e => handleNumberChange("cantidad_total", e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#4A4A4A] mb-2">Usos por Cliente *</label>
+              <input 
+                type="number" 
+                required
+                min="1"
+                className="w-full p-4 border border-[#DDC9A3]/50 rounded-2xl text-lg focus:ring-4 focus:ring-[#6BAEC9]/20 focus:border-[#6BAEC9] transition-all"
+                value={formData.limite_usuario}
+                onChange={e => handleNumberChange("limite_usuario", e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-[#4A4A4A] mb-2">Inicio</label>
+                <input 
+                  type="datetime-local" 
+                  className="w-full p-4 border border-[#DDC9A3]/50 rounded-2xl text-sm focus:ring-4 focus:ring-[#6BAEC9]/20 focus:border-[#6BAEC9] transition-all"
+                  value={formData.fecha_inicio}
+                  onChange={e => setFormData({...formData, fecha_inicio: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#4A4A4A] mb-2">Fin</label>
+                <input 
+                  type="datetime-local" 
+                  className="w-full p-4 border border-[#DDC9A3]/50 rounded-2xl text-sm focus:ring-4 focus:ring-[#6BAEC9]/20 focus:border-[#6BAEC9] transition-all"
+                  value={formData.fecha_fin}
+                  onChange={e => setFormData({...formData, fecha_fin: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-2 mt-4 flex gap-4">
+              <button 
+                type="submit" 
+                className="flex-1 bg-[#6BAEC9] hover:bg-[#A8D7E6] text-white px-10 py-4 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all"
+              >
+                {editingId ? `💾 Guardar Cambios` : "➕ Crear Cupón"}
+              </button>
+              
+              {(formData.codigo || editingId) && (
+                <button 
+                  type="button"
+                  onClick={handleClear}
+                  className="px-10 py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-2xl font-semibold transition-all"
+                >
+                  Cancelar
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+
+        {/* TABLA (Adaptada al estilo visual de Categorías) */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-[#6BAEC9]/10">
+          <div className="px-8 py-6 bg-gradient-to-r from-[#6BAEC9]/5 to-[#A8D7E6]/5 border-b">
+            <h2 className="text-2xl font-bold text-[#4A4A4A]">
+              Lista de Cupones ({cupones.length})
+            </h2>
+            <div className="text-sm text-gray-500 mt-1">
+              Usos totales acumulados: {cupones.reduce((total, c) => total + c.usos_consumidos, 0)}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#F8F8F5] border-b border-[#DDC9A3]/30">
+                  <th className="px-8 py-5 font-bold text-[#4A4A4A]">Código</th>
+                  <th className="px-8 py-5 font-bold text-[#4A4A4A]">Descuento</th>
+                  <th className="px-8 py-5 font-bold text-[#4A4A4A]">Estado</th>
+                  <th className="px-8 py-5 font-bold text-[#4A4A4A]">Usos</th>
+                  <th className="px-8 py-5 font-bold text-[#4A4A4A]">Validez</th>
+                  <th className="px-8 py-5 font-bold text-[#4A4A4A] text-right">Acciones</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 text-right">
-        Total cupones: {cupones.length} | Usos totales: {cupones.reduce((total, c) => total + c.usos_consumidos, 0)}
+              </thead>
+              <tbody className="divide-y divide-[#F8F8F5]">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="p-12 text-center text-gray-500 animate-pulse">
+                      🔄 Cargando cupones...
+                    </td>
+                  </tr>
+                ) : cupones.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-12 text-center text-gray-500">
+                       <div className="text-6xl mb-4">🎫</div>
+                       <p className="text-xl">No hay cupones creados</p>
+                    </td>
+                  </tr>
+                ) : (
+                  cupones.map(cupon => (
+                    <tr key={cupon.id} className="hover:bg-[#F8F8F5] transition-colors">
+                      <td className="px-8 py-5">
+                        <span className="font-mono font-bold text-[#6BAEC9] bg-[#6BAEC9]/10 px-3 py-1 rounded-lg">
+                          {cupon.codigo}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5 font-semibold text-[#4A4A4A]">
+                        {cupon.valor_descuento.toFixed(2)} 
+                        {cupon.tipo_descuento === 'porcentaje' ? '%' : '€'}
+                      </td>
+                      <td className="px-8 py-5">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+                          cupon.restantes === 0 ? 'bg-red-100 text-red-700' : 
+                          cupon.restantes < 10 ? 'bg-yellow-100 text-yellow-700' : 
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {cupon.restantes === 0 ? 'Agotado' : 'Activo'}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5 text-sm text-gray-600">
+                        <span className="font-bold">{cupon.usos_consumidos}</span> 
+                        <span className="text-gray-400 mx-1">/</span> 
+                        {cupon.cantidad_total}
+                      </td>
+                      <td className="px-8 py-5 text-sm text-gray-500">
+                        <div className="flex flex-col">
+                           <span className="font-medium text-[#4A4A4A]">{new Date(cupon.fecha_fin).toLocaleDateString('es-ES')}</span>
+                           <span className="text-xs text-gray-400">{new Date(cupon.fecha_fin).toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'})}</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-right">
+                        <div className="flex justify-end gap-3">
+                          <button 
+                            onClick={() => handleEdit(cupon)}
+                            className="p-2 bg-[#F7A38B]/10 hover:bg-[#F7A38B]/20 text-[#F7A38B] rounded-lg transition-all"
+                            title="Editar"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(cupon.id)}
+                            className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-all"
+                            title="Eliminar"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
