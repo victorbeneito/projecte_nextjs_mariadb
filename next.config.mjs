@@ -12,6 +12,24 @@ typescript: {
     ignoreDuringBuilds: true,
   },
   output: 'standalone',
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'elhogardetusuenos.com',
+        port: '',
+        pathname: '/**',
+      },
+      // Si tienes imágenes de otros dominios (ej. imgur, aws, etc), añádelos aquí también
+      {
+        protocol: 'https',
+        hostname: 'cdn.shopworld.cloud',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
+  
 
 };
 

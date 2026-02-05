@@ -63,17 +63,19 @@ export default function CarritoPage() {
 
     if (!cliente) {
       toast.error("Debes iniciar sesión para continuar.");
-      router.push("/auth?redirect=/account/info?redirect=/checkout/envio");
+      // router.push("/auth?redirect=/account/info?redirect=/checkout/envio");
+      router.push("/auth?redirect=/account/info?redirect=/checkout/direcciones");
       return;
     }
 
     if (!cliente.direccion || !cliente.codigoPostal || !cliente.ciudad) {
       toast("Por favor completa tu dirección antes de continuar 🏠");
-      router.push("/account/info?redirect=/checkout/envio");
+      // router.push("/account/info?redirect=/checkout/envio");
+      router.push("/account/info?redirect=/checkout/direcciones");
       return;
     }
-
-    router.push("/checkout/envio");
+    // router.push("/checkout/envio");
+    router.push("/checkout/direcciones");
   };
 
   if (carrito.length === 0) {

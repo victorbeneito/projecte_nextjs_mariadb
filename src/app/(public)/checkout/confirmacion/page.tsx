@@ -1,202 +1,110 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { clearCart, getCart, CartItem } from "@/lib/cartService";
-import { useClienteAuth } from "@/context/ClienteAuthContext";
-
-interface Envio {
-  metodo: string;
-  coste: number;
-}
-
-interface Pago {
-  metodo: string;
-  totalFinal: number;
-}
+import { clearCart } from "@/lib/cartService"; // Asegúrate de importar tu función de vaciar carrito
 
 export default function ConfirmacionPage() {
-  const { cliente } = useClienteAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pedidoId = searchParams.get("pedido") || "PENDIENTE";
 
-  const [pedido, setPedido] = useState<{
-    envio: Envio | null;
-    pago: Pago | null;
-    carrito: CartItem[];
-  }>({
-    envio: null,
-    pago: null,
-    carrito: [],
-  });
+  // Estado para controlar la UI
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log("CLIENTE CONTEXTO:", cliente);       // ← y aquí
-  }, [cliente]);
+    // 1. Simular carga
+    const timer = setTimeout(() => {
+      setLoading(false);
+      
+      // 2. IMPORTANTE: Vaciar el carrito aquí porque la compra ha sido "exitosa"
+      // (Si usas Context, llama a clearCart() del contexto)
+      if (typeof window !== "undefined") {
+         clearCart(); // O localStorage.removeItem('cart');
+         localStorage.removeItem("checkout_envio"); // Limpiamos datos temporales
+      }
+    }, 1000);
 
-  // 1) Leer datos (envío, pago, carrito) y guardarlos en estado
-  useEffect(() => {
-    const envioRaw = localStorage.getItem("checkout_envio");
-    const pagoRaw = localStorage.getItem("checkout_pago");
-    const carrito = getCart();
-
-    const datosPedido = {
-      envio: envioRaw ? JSON.parse(envioRaw) : null,
-      pago: pagoRaw ? JSON.parse(pagoRaw) : null,
-      carrito,
-    };
-
-    setPedido(datosPedido);
+    return () => clearTimeout(timer);
   }, []);
 
-  // 2) Limpiar carrito y datos de checkout después de pintar
-  useEffect(() => {
-    if (pedido.pago && pedido.carrito.length > 0) {
-      clearCart();
-      localStorage.removeItem("checkout_envio");
-      localStorage.removeItem("checkout_pago");
-      localStorage.removeItem("checkout_direccion");
-    }
-  }, [pedido]);
-
-  // Si no hay datos suficientes, mostrar mensaje neutro
-  if (!pedido.pago || pedido.carrito.length === 0) {
+  if (loading) {
     return (
-      <div className="max-w-4xl mx-auto py-16 text-center">
-        <h1 className="text-2xl font-semibold mb-6">
-          No hay pedido pendiente
-        </h1>
-        <p className="text-gray-600 mb-4">
-          Vuelve al carrito o realiza una nueva compra.
-        </p>
-        <Link
-          href="/"
-          className="bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition dark:bg-gray-700 dark:hover:bg-gray-600"
-        >
-          ← Volver al inicio
-        </Link>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-500 font-medium">Finalizando pedido...</p>
       </div>
     );
   }
 
-  const { envio, pago, carrito } = pedido;
-  const numeroPedido = `PED-${Date.now().toString().slice(-6)}`;
-
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12 text-center space-y-8">
-      <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
-        <h1 className="text-3xl font-bold text-green-600 mb-2">
-          🎉 ¡Pedido confirmado!
-        </h1>
-        <p className="text-lg font-semibold text-green-800 mb-4">
-          Número de pedido:{" "}
-          <span className="font-mono bg-white px-3 py-1 rounded">
-            {numeroPedido}
-          </span>
-        </p>
-        <p className="text-gray-700">
-          Gracias por tu compra. Te hemos enviado un email con la
-          confirmación.
-        </p>
-      </div>
-
-      {/* Resumen completo */}
-      <div className="bg-white shadow-xl rounded-lg p-8 text-left space-y-6">
-        <h2 className="text-2xl font-semibold border-b pb-2">
-          Resumen del pedido #{numeroPedido}
-        </h2>
-
-        {/* Cliente y dirección desde el contexto */}
-        {cliente && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg">
-            <div>
-              <h3 className="font-semibold mb-2">👤 Cliente</h3>
-              <p className="text-lg font-medium">
-                {cliente.nombre} {cliente.apellidos}
-              </p>
-              <p className="text-gray-700">{cliente.email}</p>
-              <p className="text-sm text-gray-600">
-                📞 {cliente.telefono || "No indicado"}
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">📍 Dirección</h3>
-              <p className="text-gray-700">
-                {cliente.direccion || "Dirección no indicada"}
-              </p>
-              <p className="text-sm text-gray-600">
-                {(cliente.codigoPostal || "CP no indicado") +
-                  " " +
-                  (cliente.ciudad || "")}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Envío */}
-        {envio && (
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-semibold mb-2">🚚 Método de envío</h3>
-            <p className="text-lg">
-              {envio.metodo === "tienda"
-                ? "🏬 Recoger en tienda (gratis)"
-                : `🚚 ${envio.metodo} · ${envio.coste}€`}
-            </p>
-          </div>
-        )}
-
-        {/* Pago */}
-        {pago && (
-          <div className="p-4 bg-yellow-50 rounded-lg">
-            <h3 className="font-semibold mb-2">💳 Método de pago</h3>
-            <p className="text-lg capitalize">
-              {pago.metodo === "tarjeta" && "💳 Tarjeta (Redsys)"}
-              {pago.metodo === "paypal" && "💰 PayPal"}
-              {pago.metodo === "transferencia" &&
-                "🏦 Transferencia bancaria"}
-              {pago.metodo === "bizum" && "📱 Bizum"}
-              {pago.metodo === "contrareembolso" &&
-                "💵 Contrareembolso"}
-            </p>
-          </div>
-        )}
-
-        {/* Productos */}
-        {carrito.length > 0 && (
-          <div className="space-y-3">
-            <h3 className="font-semibold text-lg mb-3">🛒 Productos</h3>
-            <div className="divide-y divide-gray-200">
-              {carrito.map((item: CartItem) => (
-                <div
-                  key={item.id}
-                  className="py-3 flex justify-between items-center"
-                >
-                  <div>
-                    <p className="font-medium">{item.nombre}</p>
-                    <p className="text-sm text-gray-600">
-                      × {item.cantidad}
-                    </p>
-                  </div>
-                  <p className="font-semibold text-lg">
-                    {(item.precioFinal ?? item.precio).toFixed(2)}€
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="border-t pt-4 text-right">
-          <p className="text-3xl font-bold text-primary">
-            Total: {pago.totalFinal.toFixed(2)}€
-          </p>
+    <div className="min-h-screen bg-fondo flex flex-col items-center justify-center px-4 py-12 font-sans">
+      <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center border border-[#e4e0d5]">
+        
+        {/* Icono de Éxito Animado */}
+        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce-slow">
+          <svg 
+            className="w-12 h-12 text-green-600" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path>
+          </svg>
         </div>
+
+        <h1 className="text-3xl md:text-4xl font-extrabold text-[#333] mb-4">
+          ¡Gracias por tu compra!
+        </h1>
+        
+        <p className="text-gray-600 mb-8 text-lg">
+          Tu pedido ha sido procesado correctamente. Hemos enviado un email de confirmación con los detalles.
+        </p>
+
+        {/* Tarjeta con detalles del pedido */}
+        <div className="bg-gray-50 rounded-xl p-6 mb-8 border border-gray-100">
+           <div className="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
+              <span className="text-gray-500 text-sm font-medium uppercase tracking-wide">Nº de Pedido</span>
+              <span className="text-xl font-bold text-primary font-mono">#{pedidoId}</span>
+           </div>
+           
+           <div className="flex justify-between items-center">
+              <span className="text-gray-500 text-sm font-medium uppercase tracking-wide">Estado</span>
+              <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full uppercase">
+                Pagado / Confirmado
+              </span>
+           </div>
+           
+           {/* ⚠️ NOTA: No intentamos mostrar el "Total" aquí leyendo de la BD
+              porque si el pedido es simulado, fallaría el toFixed().
+              Es mejor mostrar un mensaje genérico de éxito.
+           */}
+        </div>
+
+        {/* Botones de Acción */}
+        <div className="space-y-4">
+          <Link 
+            href="/"
+            className="block w-full bg-primary text-white font-bold py-4 rounded-xl shadow-lg shadow-yellow-500/20 hover:bg-primaryHover hover:scale-[1.02] transition-all"
+          >
+            Volver a la tienda
+          </Link>
+          
+          <Link 
+            href="/account/pedidos"
+            className="block w-full bg-white text-gray-600 font-bold py-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+          >
+            Ver mis pedidos
+          </Link>
+        </div>
+
       </div>
 
-      <Link
-        href="/"
-        className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold text-lg hover:bg-primaryHover transition dark:bg-gray-700 dark:hover:bg-gray-600"
-      >
-        ← Volver al inicio
-      </Link>
+      {/* Footer pequeño */}
+      <p className="mt-8 text-gray-400 text-sm">
+        ¿Necesitas ayuda? <a href="/contacto" className="underline hover:text-gray-600">Contáctanos</a>
+      </p>
     </div>
   );
 }

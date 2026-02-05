@@ -39,7 +39,7 @@ export default function EnvioPage() {
     };
 
     localStorage.setItem("checkout_envio", JSON.stringify(envioData));
-    router.push("/checkout/pago");
+    router.push("/checkout/resumen");
   };
 
   if (loading) return <p className="p-8 text-center dark:text-white">Cargando...</p>;
