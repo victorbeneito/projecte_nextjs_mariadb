@@ -4,14 +4,15 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 // ======================================================================
-// GET: LISTAR PEDIDOS (Universal: Admin y Cliente)
+// GET: LISTAR PEDIDOS
 // ======================================================================
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const clienteId = searchParams.get("clienteId");
 
-    // Filtro dinámico
+    console.log(`🔍 [GET Pedidos] Buscando para ClienteID: ${clienteId || "TODOS"}`);
+
     const whereClause = clienteId ? { clienteId: parseInt(clienteId) } : {};
 
     const pedidosRaw = await prisma.pedido.findMany({
@@ -20,35 +21,25 @@ export async function GET(req: Request) {
         PedidoProducto: true, 
         Cliente: true         
       }, 
-      orderBy: { id: 'desc' }, 
+     orderBy: { fechaPedido: 'desc' }, // 🔥 IMPORTANTE: Ordenar por fecha creación
     });
 
-    // 🔄 MAPEO UNIVERSAL (A prueba de fallos)
     const pedidosFormateados = pedidosRaw.map((p: any) => ({
       id: p.id,
       numeroPedido: p.numeroPedido,
-      
-      // --- DATOS PLANOS (Para tu componente orders/page.tsx) ---
-      pagoMetodo: p.pagoMetodo,   // 👈 ESTO ES LO QUE FALTABA
-      envioMetodo: p.envioMetodo, // 👈 ESTO TAMBIÉN
+      pagoMetodo: p.pagoMetodo,
+      envioMetodo: p.envioMetodo,
       envioCoste: Number(p.envioCoste),
       totalFinal: parseFloat(p.totalFinal),
       estado: p.estado,
-      
-      // Fechas
-      fecha: p.fechaPedido ? p.fechaPedido.toISOString() : (p.updatedAt ? p.updatedAt.toISOString() : null),
+      fecha: p.fechaPedido ? p.fechaPedido.toISOString() : p.createdAt.toISOString(),
       fechaPedido: p.fechaPedido ? p.fechaPedido.toISOString() : null,
-      createdAt: p.fechaPedido ? p.fechaPedido.toISOString() : null,
-
-      // --- OBJETOS ANIDADOS (Para el Panel de Admin) ---
+      
+      // Datos cliente
       nombre: p.nombre,
       cliente: {
         nombre: p.nombre || p.Cliente?.nombre || "Cliente Visitante",
         email: p.email || p.Cliente?.email || "Sin email"
-      },
-      pago: {
-        metodo: p.pagoMetodo,
-        totalFinal: parseFloat(p.totalFinal)
       },
       
       // Productos
@@ -69,36 +60,64 @@ export async function GET(req: Request) {
 }
 
 // ======================================================================
-// POST: CREAR PEDIDO
+// POST: CREAR PEDIDO (CON LOGS DE DEPURACIÓN)
 // ======================================================================
 export async function POST(req: Request) {
+  console.log("🚨 --- INICIO PROCESO DE PEDIDO ---");
+  
   try {
     const body = await req.json();
+    console.log("📦 Body recibido:", JSON.stringify(body, null, 2));
 
     let clienteId: number | null = null;
     const datosCliente = body.cliente || {};
 
+    // 1. Intentar vincular cliente
     if (datosCliente.email) {
       const c = await prisma.cliente.findUnique({ where: { email: datosCliente.email } });
-      if (c) clienteId = c.id;
+      if (c) {
+          clienteId = c.id;
+          console.log("✅ Cliente encontrado por email:", c.email, "ID:", c.id);
+      }
     }
-    if (!clienteId && body.clienteId) clienteId = parseInt(body.clienteId);
     
+    if (!clienteId && body.clienteId) {
+        clienteId = parseInt(body.clienteId);
+        console.log("✅ Cliente encontrado por ID directo:", clienteId);
+    }
+    
+    // Fallback de seguridad (SOLO PARA PRUEBAS, QUITAR EN PRODUCCIÓN)
     if (!clienteId) {
+        console.warn("⚠️ NO SE ENCONTRÓ CLIENTE. Asignando al primer cliente de la BD (Fallback).");
         const firstClient = await prisma.cliente.findFirst();
         if (firstClient) clienteId = firstClient.id;
-        else return NextResponse.json({ error: "No hay clientes en la BD" }, { status: 400 });
+        else {
+             console.error("❌ ERROR CRÍTICO: No hay ningún cliente en la base de datos.");
+             return NextResponse.json({ error: "No hay clientes en la BD" }, { status: 400 });
+        }
     }
 
+    // 2. Preparar productos
     const listaItems = body.carrito || body.productos || body.items || [];
+    if (listaItems.length === 0) {
+        console.error("❌ ERROR: El carrito está vacío.");
+        return NextResponse.json({ error: "Carrito vacío" }, { status: 400 });
+    }
+
     const productosParaInsertar = listaItems.map((p: any) => ({
       nombre: p.nombre,
       cantidad: p.cantidad,
       precioUnitario: parseFloat(p.precioFinal ?? p.precio),
       subtotal: (parseFloat(p.precioFinal ?? p.precio)) * p.cantidad,
+      // Si tu esquema requiere productoId, añádelo aquí:
+      productoIdRef: p.id // Asegúrate de que esto coincide con tu schema
     }));
 
+    // 3. Ejecutar Transacción
+    console.log("💾 Iniciando transacción en Prisma...");
+    
     const result = await prisma.$transaction(async (tx: any) => {
+      // Generar numeroPedido
       const anio = new Date().getFullYear();
       const prefijo = `PED-${anio}-`;
       const ultimo = await tx.pedido.findFirst({
@@ -112,12 +131,15 @@ export async function POST(req: Request) {
         if (partes.length === 3) sec = parseInt(partes[2]) + 1;
       }
       const numeroGenerado = `${prefijo}${sec.toString().padStart(4, '0')}`;
+      
+      console.log("🔢 Número de pedido generado:", numeroGenerado);
 
+      // Crear
       const pedido = await tx.pedido.create({
         data: {
           numeroPedido: numeroGenerado,
           clienteId: clienteId!,
-          nombre: datosCliente.nombre || "Cliente",
+          nombre: datosCliente.nombre || "Cliente Sin Nombre",
           email: datosCliente.email,
           telefono: datosCliente.telefono,
           direccion: datosCliente.direccion,
@@ -134,7 +156,7 @@ export async function POST(req: Request) {
           estado: "PENDIENTE",
           
           fechaPedido: new Date(), 
-          updatedAt: new Date(), 
+          updatedAt: new Date(), // 🔥 Importante para que no salga null
           
           PedidoProducto: {
             create: productosParaInsertar
@@ -146,11 +168,13 @@ export async function POST(req: Request) {
       return pedido;
     });
 
+    console.log("✨ ¡ÉXITO! Pedido guardado con ID:", result.id);
     return NextResponse.json({ ok: true, pedido: result });
 
   } catch (error: any) {
-    console.error("❌ Error creando pedido:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("🔥 ERROR FATAL AL GUARDAR PEDIDO 🔥");
+    console.error(error); // Esto imprimirá el error exacto de Prisma en la terminal
+    return NextResponse.json({ error: error.message, details: error }, { status: 500 });
   }
 }
 // import { NextResponse } from "next/server";

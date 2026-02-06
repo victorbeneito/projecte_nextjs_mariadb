@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken"; // 👈 NECESARIO PARA GENERAR EL TOKEN
+import jwt from "jsonwebtoken"; 
 
 export async function POST(req: Request) {
   try {
@@ -51,16 +51,15 @@ export async function POST(req: Request) {
 
     const { password: _, ...clienteSinPassword } = nuevoCliente;
 
-    // 4. 🔥 GENERAR TOKEN (ESTO ES LO QUE FALTABA) 🔥
-    // Usamos la misma clave secreta que en el Login. 
-    // Si tienes una variable de entorno JWT_SECRET, la usará.
+    // 4. 🔥 GENERAR TOKEN CORREGIDO 🔥
+    // AHORA USAMOS 'SECRETO_JWT_CLIENTE' IGUAL QUE EN EL LOGIN
     const token = jwt.sign(
       { 
         id: nuevoCliente.id, 
         email: nuevoCliente.email, 
         role: nuevoCliente.role 
       },
-      process.env.JWT_SECRET || "secreto_super_seguro_tienda", // Fallback por si no hay .env
+      process.env.SECRETO_JWT_CLIENTE!, // 👈 CAMBIO CLAVE AQUÍ
       { expiresIn: "30d" }
     );
 
@@ -70,7 +69,7 @@ export async function POST(req: Request) {
         message: "Usuario registrado con éxito",
         user: clienteSinPassword,
         cliente: clienteSinPassword,
-        token: token // 👈 AHORA SÍ ENVIAMOS EL TOKEN
+        token: token 
       },
       { status: 201 }
     );

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // ✅ Usamos tu archivo singleton
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
     });
 
     // 2. Comprobar si existe y si es ADMIN
-    // Convertimos a mayúsculas para evitar errores de "Admin" vs "ADMIN"
     const rol = admin?.rol?.toString().toUpperCase();
 
     if (!admin || rol !== "ADMIN") {
@@ -41,21 +40,27 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Crear Token
-    // IMPORTANTE: Usamos fallback "||" para que NO falle si falta la variable en Vercel
     const secret = process.env.SECRETO_JWT_ADMIN || "palabra_secreta_emergencia_2026";
 
+    // 🔥🔥 AQUÍ ESTÁ EL CAMBIO IMPORTANTE 🔥🔥
     const token = jwt.sign(
       { 
         id: admin.id, 
         email: admin.email, 
+        
+        // 👇 AÑADIMOS "role" (INGLÉS) PORQUE EL DELETE LO BUSCA ASÍ
+        role: "ADMIN", 
+        
+        // Mantenemos "rol" (ESPAÑOL) por si lo usas en el frontend
         rol: admin.rol, 
+        
         nombre: admin.nombre 
       },
       secret,
       { expiresIn: "7d" }
     );
 
-    // 5. Preparar respuesta (sin password)
+    // 5. Preparar respuesta
     const { password: _, ...adminSinPassword } = admin;
 
     const response = NextResponse.json({ 
@@ -64,7 +69,6 @@ export async function POST(req: NextRequest) {
       user: adminSinPassword 
     });
 
-    // Cookie opcional pero recomendada
     response.cookies.set("admin_token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -72,7 +76,7 @@ export async function POST(req: NextRequest) {
         path: "/",
     });
 
-    console.log("✅ Admin Login ÉXITO");
+    console.log("✅ Admin Login ÉXITO (Token con role: ADMIN generado)");
     return response;
 
   } catch (error: any) {

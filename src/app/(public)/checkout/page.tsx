@@ -25,8 +25,10 @@ export default function CheckoutPage() {
     }
 
     if (!loading && cliente) {
+      // Validación básica de dirección
       if (!cliente.direccion || !cliente.ciudad || !cliente.codigoPostal) {
-        router.push("/direcciones?next=/checkout/envio");
+        toast("Por favor, completa tu dirección de envío", { icon: "🚚" });
+        router.push("/direcciones?next=/checkout"); // Redirige y vuelve aquí
         return;
       }
 
@@ -52,37 +54,101 @@ export default function CheckoutPage() {
         toast.error("Debes iniciar sesión para aplicar un cupón");
         return;
       }
-      console.log('🧾 Enviando cupón:', { codigo, subtotal: total }); // ✅
-
+      
       const res = await fetchWithAuth("/api/cupones/validate", token, {
         method: "POST",
-        body: JSON.stringify({ codigo , subtotal: total }),
+        body: JSON.stringify({ codigo, subtotal: total }),
       });
 
       if (res.valid) {
         setDescuento(res.descuento);
-        toast.success(`Cupón válido: -${res.descuento}%`);
+        toast.success(`¡Cupón aplicado! Ahorras un ${res.descuento}%`);
       } else {
         setDescuento(0);
         toast.error(res.error || "Cupón no válido");
       }
     } catch (error) {
-      toast.error("Error validando el cupón");
+      toast.error("Error al validar el cupón");
       console.error(error);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearCart();
-    setPedidoEnviado(true);
+    console.log("🖱️ CLICK EN CONFIRMAR PEDIDO DETECTADO");
+
+    // 🛑 1. GUARDIA DE SEGURIDAD (Esto arregla el error 'possibly null')
+    // Si no hay cliente, paramos aquí y TypeScript se queda tranquilo.
+    if (!cliente) {
+        toast.error("Error: No se ha identificado al usuario.");
+        return;
+    }
+
+    // A partir de aquí, TypeScript ya sabe que 'cliente' EXISTE seguro.
+
+    const totalConDescuento = total - (total * descuento) / 100;
+
+    // 2. Preparamos los datos (Ahora sin líneas rojas)
+    const datosPedido = {
+        clienteId: cliente.id, 
+        carrito: carrito,
+        totalFinal: totalConDescuento,
+        subtotal: total,
+        descuento: (total * descuento) / 100,
+        cliente: {
+            nombre: cliente.nombre,
+            email: cliente.email,
+            telefono: cliente.telefono || "", // Fallback por si es null
+            direccion: cliente.direccion,
+            ciudad: cliente.ciudad,
+            cp: cliente.codigoPostal
+        },
+        metodoPago: { metodo: "tarjeta" },
+        metodoEnvio: { metodo: "estándar", coste: 0 }
+    };
+
+    console.log("📤 ENVIANDO DATOS AL SERVIDOR:", datosPedido);
+
+    try {
+        const toastId = toast.loading("Conectando con el servidor...");
+
+        const response = await fetch("/api/pedidos", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(datosPedido),
+        });
+
+        console.log("📩 RESPUESTA RECIBIDA. Status:", response.status);
+
+        const data = await response.json();
+        console.log("📦 DATOS RESPUESTA:", data);
+
+        toast.dismiss(toastId);
+
+        if (data.ok) {
+            toast.success("¡Pedido guardado correctamente!");
+            clearCart();
+            setPedidoEnviado(true);
+            window.dispatchEvent(new Event("storage"));
+        } else {
+            console.error("❌ ERROR API:", data.error);
+            toast.error(data.error || "Error al guardar el pedido");
+        }
+
+    } catch (error) {
+        console.error("🔥 ERROR DE RED:", error);
+        toast.error("Error de conexión al guardar");
+    }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
+      <div className="min-h-[60vh] flex flex-col justify-center items-center gap-4">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
         <p className="text-gray-500 dark:text-gray-400 text-sm animate-pulse">
-          Comprobando autenticación...
+          Cargando tus datos...
         </p>
       </div>
     );
@@ -92,18 +158,21 @@ export default function CheckoutPage() {
 
   if (pedidoEnviado) {
     return (
-      <div className="max-w-3xl mx-auto py-16 text-center">
-        <h1 className="text-3xl font-bold text-green-600 mb-4">
-          🎉 ¡Pedido realizado con éxito!
+      <div className="min-h-[60vh] flex flex-col items-center justify-center px-4 text-center">
+        <div className="w-20 h-20 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mb-6 animate-bounce-slow">
+            <svg className="w-10 h-10 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+          ¡Pedido Recibido! 🎉
         </h1>
-        <p className="text-gray-700 dark:text-gray-300 mb-8">
-          Gracias por tu compra. Te enviaremos un correo con la confirmación.
+        <p className="text-gray-600 dark:text-gray-300 mb-8 max-w-md text-lg">
+          Gracias por tu compra. Hemos enviado los detalles a tu correo electrónico <strong>{cliente.email}</strong>.
         </p>
         <Link
           href="/"
-          className="bg-primary text-white px-4 py-2 rounded hover:bg-primaryHover transition"
+          className="bg-primary text-white px-8 py-3 rounded-lg font-bold hover:bg-primaryHover transition shadow-lg transform hover:-translate-y-1"
         >
-          Volver al inicio
+          Volver a la tienda
         </Link>
       </div>
     );
@@ -112,113 +181,145 @@ export default function CheckoutPage() {
   const totalConDescuento = total - (total * descuento) / 100;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10 grid lg:grid-cols-3 gap-10">
-      {/* Datos de envío (solo lectura) */}
-      <div className="lg:col-span-2 space-y-6">
-        <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-white">
-          Finalizar compra 🧾
-        </h1>
+    // Contenedor principal responsive
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      
+      <h1 className="text-2xl md:text-3xl font-bold mb-8 text-gray-900 dark:text-white flex items-center gap-2">
+        <span className="bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">1</span>
+        Finalizar Compra
+      </h1>
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white dark:bg-darkNavBg p-6 rounded-lg shadow space-y-4 transition-colors duration-300"
-        >
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-              Datos de envío
-            </p>
-            <div className="text-sm text-gray-800 dark:text-gray-300 space-y-1">
-              <p>
-                {cliente.nombre} {cliente.apellidos}
-              </p>
-              <p>{cliente.email}</p>
-              <p>{cliente.direccion}</p>
-              <p>
-                {cliente.codigoPostal} {cliente.ciudad}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => router.push("/direcciones?next=/checkout/envio")}
-              className="mt-2 text-xs text-primary hover:underline"
-            >
-              Editar dirección
-            </button>
-          </div>
-
-          <button
-            type="submit"
-            className="bg-primary text-white px-6 py-2 rounded font-semibold hover:bg-primaryHover transition w-full sm:w-auto dark:bg-gray-700 dark:hover:bg-gray-600"
-          >
-            Confirmar pedido
-          </button>
-        </form>
-      </div>
-
-      {/* Resumen del pedido */}
-      <div className="bg-white dark:bg-darkNavBg p-6 rounded-lg shadow h-fit transition-colors duration-300">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-          Resumen del pedido
-        </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 items-start">
         
-        <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
-          {carrito.map((item) => (
-            <div
-              key={item.id}
-              className="flex justify-between items-center text-sm border-b dark:border-gray-700 pb-2 last:border-0"
-            >
-              <div>
-                <p className="font-medium text-gray-800 dark:text-gray-200">
-                  {item.nombre}
-                </p>
-                <p className="text-gray-500 dark:text-gray-400">
-                  {item.cantidad} ×{" "}
-                  {(item.precioFinal ?? item.precio).toFixed(2)} €
-                </p>
-              </div>
-              <span className="font-medium text-gray-800 dark:text-white">
-                {((item.precioFinal ?? item.precio) * item.cantidad).toFixed(2)} €
-              </span>
+        {/* --- COLUMNA IZQUIERDA: FORMULARIO --- */}
+        {/* --- COLUMNA IZQUIERDA: FORMULARIO (MODIFICADO) --- */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* ⚠️ CAMBIO 1: Ya no es un <form>, es un <div> para evitar comportamientos raros */}
+          <div className="bg-white dark:bg-darkNavBg p-6 md:p-8 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+            
+            <div className="flex justify-between items-center mb-6">
+                 <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                    📍 Dirección de Envío
+                 </h2>
+                 <button type="button" onClick={() => router.push("/direcciones?next=/checkout")} className="text-sm text-primary underline">Cambiar</button>
             </div>
-          ))}
-        </div>
 
-        <hr className="my-4 dark:border-gray-700" />
+            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-8">
+                <p className="font-bold">{cliente.nombre}</p>
+                <p>{cliente.direccion}, {cliente.ciudad} ({cliente.codigoPostal})</p>
+            </div>
 
-        {/* 🔹 Bloque de cupón */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-            ¿Tienes un cupón de descuento?
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value)}
-              placeholder="Introduce tu código"
-              className="flex-1 border dark:border-gray-600 rounded-md p-2 text-sm bg-gray-50 dark:bg-darkBg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary"
-            />
+            {/* ⚠️ CAMBIO 2: Botón con onClick directo y texto cambiado para verificar */}
             <button
-              type="button"
-              onClick={aplicarCupon}
-              className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 text-sm dark:bg-gray-700 dark:hover:bg-gray-600"
+              type="button" 
+              onClick={handleSubmit}
+              disabled={loading} // Evita doble click
+              className="w-full bg-blue-600 text-white px-6 py-4 rounded-lg font-bold text-lg hover:bg-blue-700 transition shadow-md flex justify-center items-center gap-2"
             >
-              Aplicar
+              {loading ? (
+                <span>Procesando...</span>
+              ) : (
+                <>
+                  <span>PAGAR AHORA (REAL) 💳</span> 
+                  {/* He cambiado el texto para que sepas si se ha actualizado */}
+                </>
+              )}
             </button>
+            <p className="text-xs text-center text-gray-400 mt-4">Al confirmar, se guardará el pedido en la base de datos.</p>
           </div>
-          {descuento > 0 && (
-            <p className="text-green-600 dark:text-green-400 text-sm mt-2">
-              Cupón aplicado: -{descuento}% de descuento
-            </p>
-          )}
         </div>
 
-        <div className="flex justify-between items-center pt-2">
-            <span className="text-lg font-semibold text-gray-900 dark:text-white">Total:</span>
-            <span className="text-primary text-2xl font-bold">
-                {totalConDescuento.toFixed(2)} €
-            </span>
+            
+
+        {/* --- COLUMNA DERECHA: RESUMEN (Sticky en PC) --- */}
+        <div className="lg:col-span-1 lg:sticky lg:top-24">
+          <div className="bg-white dark:bg-darkNavBg p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-300">
+            <h2 className="text-lg font-bold mb-4 text-gray-900 dark:text-white border-b dark:border-gray-700 pb-2">
+              Resumen del Pedido
+            </h2>
+            
+            <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar pr-1">
+              {carrito.map((item) => (
+                <div key={item.id} className="flex gap-3 text-sm">
+                   {/* Imagen miniatura opcional si la tienes en item.imagen */}
+                   {item.imagen && (
+                       <div className="w-12 h-12 flex-shrink-0 relative rounded-md overflow-hidden border border-gray-200 dark:border-gray-600">
+                           <img src={item.imagen} alt={item.nombre} className="object-cover w-full h-full" />
+                       </div>
+                   )}
+                   <div className="flex-1">
+                      <p className="font-medium text-gray-800 dark:text-gray-200 line-clamp-2">
+                        {item.nombre}
+                      </p>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">
+                        Cant: {item.cantidad}
+                      </p>
+                   </div>
+                   <div className="font-bold text-gray-900 dark:text-white">
+                      {((item.precioFinal ?? item.precio) * item.cantidad).toFixed(2)}€
+                   </div>
+                </div>
+              ))}
+            </div>
+
+            <hr className="my-6 border-gray-200 dark:border-gray-700" />
+
+            {/* Cupón */}
+            <div className="mb-6">
+              <label className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-2">
+                Código promocional
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value)}
+                  placeholder="CUPON2026"
+                  className="flex-1 uppercase border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-gray-50 dark:bg-darkBg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={aplicarCupon}
+                  className="bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-bold transition whitespace-nowrap dark:bg-gray-700 dark:hover:bg-gray-600"
+                >
+                  Aplicar
+                </button>
+              </div>
+              {descuento > 0 && (
+                <div className="mt-2 text-green-600 dark:text-green-400 text-xs font-bold bg-green-50 dark:bg-green-900/20 p-2 rounded flex items-center gap-1">
+                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                   Cupón del {descuento}% aplicado
+                </div>
+              )}
+            </div>
+
+            {/* Totales */}
+            <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300 mb-4">
+                <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span>{total.toFixed(2)} €</span>
+                </div>
+                {descuento > 0 && (
+                    <div className="flex justify-between text-green-600 dark:text-green-400">
+                        <span>Descuento</span>
+                        <span>- {((total * descuento) / 100).toFixed(2)} €</span>
+                    </div>
+                )}
+                <div className="flex justify-between">
+                    <span>Envío</span>
+                    <span className="text-green-600 font-medium">Gratis</span>
+                </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-base font-bold text-gray-900 dark:text-white">Total a Pagar</span>
+                <span className="text-2xl font-extrabold text-primary">
+                    {totalConDescuento.toFixed(2)} €
+                </span>
+            </div>
+          </div>
         </div>
+
       </div>
     </div>
   );

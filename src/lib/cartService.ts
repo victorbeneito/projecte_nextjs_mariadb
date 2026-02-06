@@ -16,6 +16,7 @@ export interface CartItem {
   
   // 👇 AÑADIMOS ESTO PARA SOLUCIONAR EL ERROR
   tiradorSeleccionado?: string;
+  atributo?: string;
 }
 
 // 2. Obtener carrito
