@@ -1,15 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { getCart } from "@/lib/cartService";
 import toast from "react-hot-toast";
 
 export default function TransferenciaPage() {
   const router = useRouter();
+  const searchParams = useSearchParams(); // <--- Hook para leer la URL
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const totalUrl = searchParams.get("total");
+  const pedidoId = searchParams.get("id");
+
+  // Si por lo que sea no viene en la URL, ponemos 0 o gestionamos error
+  const importeFinal = totalUrl ? parseFloat(totalUrl).toFixed(2) : "0.00";
 
   const IBAN = "ES82 0081 0319 0452 7458 0563";
 
@@ -112,7 +118,7 @@ export default function TransferenciaPage() {
             {/* Total */}
             <div className="flex justify-between items-center py-4 border-t border-gray-100 dark:border-gray-700">
                 <span className="font-bold text-lg text-gray-700 dark:text-gray-300">Importe a transferir:</span>
-                <span className="font-extrabold text-3xl text-gray-900 dark:text-white">{total.toFixed(2)} €</span>
+                <span className="font-extrabold text-3xl text-gray-900 dark:text-white">{importeFinal} €</span>
             </div>
 
             {/* Botones de Acción */}

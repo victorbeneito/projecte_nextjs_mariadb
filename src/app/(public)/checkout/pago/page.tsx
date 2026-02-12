@@ -17,6 +17,7 @@ export default function PagoPage() {
   const [metodoPago, setMetodoPago] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [costeEnvio, setCosteEnvio] = useState(0); // Estado para guardar el envío
+  const [descuento, setDescuento] = useState(0);
   
   // Popups
   const [showRedsys, setShowRedsys] = useState(false);
@@ -25,7 +26,7 @@ export default function PagoPage() {
   const [pedidoTempId, setPedidoTempId] = useState("");
   const [procesando, setProcesando] = useState(false); // Para deshabilitar botón al guardar
 
-  useEffect(() => {
+ useEffect(() => {
     if (!loading) {
         if (!cliente) { 
             router.push("/auth?redirect=/checkout/pago"); 
@@ -39,7 +40,7 @@ export default function PagoPage() {
         }
         setCarrito(cart);
 
-        // Recuperar envío del LocalStorage (TU LÓGICA ORIGINAL)
+        // 1. Recuperar envío
         let envio = 0;
         const envioData = localStorage.getItem("checkout_envio");
         if (envioData) {
@@ -48,14 +49,25 @@ export default function PagoPage() {
             setCosteEnvio(envio);
         }
 
+        // 2. Recuperar descuento del cupón <--- NUEVO
+        const descuentoData = localStorage.getItem("checkout_descuento");
+        const montoDescuento = descuentoData ? parseFloat(descuentoData) : 0;
+        setDescuento(montoDescuento);
+
+        // 3. Calcular total restando el descuento
         const subtotal = cart.reduce((acc, item) => acc + (item.precioFinal ?? item.precio) * item.cantidad, 0);
-        setTotal(subtotal + envio);
+        
+        // El total es: subtotal + envío - descuento (mínimo 0)
+        setTotal(Math.max(0, subtotal + envio - montoDescuento));
     }
-  }, [router, cliente, loading]);
+  }, [router, cliente, loading]); 
 
   // Recargo solo visual para contrareembolso
   const calcularTotalMostrado = () => {
-    if (metodoPago === "contrareembolso") return (total + 3 + (total * 0.03)).toFixed(2);
+    if (metodoPago === "contrareembolso") {
+        // total ya tiene restado el descuento del cupón
+        return (total + 3 + (total * 0.03)).toFixed(2);
+    }
     return total.toFixed(2);
   };
 
@@ -77,6 +89,7 @@ export default function PagoPage() {
         carrito: carrito,
         totalFinal: parseFloat(calcularTotalMostrado()), // Usamos el total final calculado
         subtotal: total - costeEnvio,
+        descuentoAplicado: descuento,
         
         cliente: {
             nombre: cliente.nombre,
@@ -142,8 +155,10 @@ export default function PagoPage() {
     setShowRedsys(false);
     setShowPaypal(false);
     clearCart(); // Limpiamos carrito al confirmar pago exitoso
+    localStorage.removeItem("checkout_descuento");
     window.dispatchEvent(new Event("storage"));
     router.push(`/checkout/confirmacion?pedido=${pedidoTempId}`);
+
   };
 
   if (loading) return (
@@ -227,8 +242,7 @@ export default function PagoPage() {
                     <div className="flex justify-between items-center mb-6">
                         <span className="text-lg font-medium text-gray-600 dark:text-gray-300">Total a Pagar:</span>
                         <span className="text-3xl font-extrabold text-gray-900 dark:text-white">
-                            {calcularTotalMostrado()} €
-                        </span>
+                            {calcularTotalMostrado()} €</span>
                     </div>
 
                     <div className="flex flex-col-reverse md:flex-row justify-between gap-4">

@@ -7,15 +7,14 @@ services:
     container_name: tienda_mariadb
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root  # Contraseña maestra
-      MYSQL_DATABASE: tienda_db  # Nombre de la BD
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: tienda_db
       MYSQL_USER: admin
-      MYSQL_PASSWORD: password123 # Contraseña para tu app
+      MYSQL_PASSWORD: password123
     ports:
       - "3306:3306"
     volumes:
-      - mariadb_data:/var/lib/mysql
-      # Esta línea carga tu fichero SQL automáticamente si lo pones en la carpeta correcta
+      - ./mysql_data:/var/lib/mysql  # <--- EL CAMBIO CLAVE (ruta relativa)
       # - ./backup.sql:/docker-entrypoint-initdb.d/backup.sql 
 
   # 2. El Gestor Visual (PhpMyAdmin)
@@ -30,6 +29,3 @@ services:
       UPLOAD_LIMIT: 64M
     depends_on:
       - db
-
-volumes:
-  mariadb_data:

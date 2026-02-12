@@ -12,8 +12,7 @@ properties:
         port: 80
       - protocol: TCP
         port: 3306
-    # 👇 PON TU NOMBRE DNS ÚNICO AQUÍ
-    dnsNameLabel: tiendahogar-db-vicben
+    esdrf    dnsNameLabel: tiendahogar-db-vicben
   
   # ⚠️ Sin volúmenes externos para evitar cuelgues de MariaDB
 
